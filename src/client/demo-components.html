@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hide & Seek - Design System Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-xl);
+        }
+        .demo-section {
+            margin-bottom: var(--spacing-2xl);
+        }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+        .component-showcase {
+            padding: var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1 style="color: var(--accent-primary); text-align: center; margin-bottom: var(--spacing-2xl);">
+            Hide & Seek Design System
+        </h1>
+        
+        <!-- Color Palette -->
+        <div class="demo-section">
+            <h2 class="text-primary">Color Palette</h2>
+            <div class="demo-grid">
+                <div class="component-showcase">
+                    <div style="background: var(--primary-dark); height: 60px; border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);"></div>
+                    <strong>Primary Dark</strong><br>
+                    <code>#222831</code>
+                </div>
+                <div class="component-showcase">
+                    <div style="background: var(--secondary-dark); height: 60px; border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);"></div>
+                    <strong>Secondary Dark</strong><br>
+                    <code>#393E46</code>
+                </div>
+                <div class="component-showcase">
+                    <div style="background: var(--accent-cyan); height: 60px; border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);"></div>
+                    <strong>Accent Cyan</strong><br>
+                    <code>#00ADB5</code>
+                </div>
+                <div class="component-showcase">
+                    <div style="background: var(--light-gray); height: 60px; border-radius: var(--border-radius); margin-bottom: var(--spacing-sm);"></div>
+                    <strong>Light Gray</strong><br>
+                    <code>#EEEEEE</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="demo-section">
+            <h2 class="text-primary">Buttons</h2>
+            <div class="demo-grid">
+                <div class="component-showcase">
+                    <h3 class="text-secondary">Primary Buttons</h3>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <button class="btn btn-primary">Primary Button</button>
+                        <button class="btn btn-primary btn-sm">Small Primary</button>
+                        <button class="btn btn-primary btn-lg">Large Primary</button>
+                    </div>
+                </div>
+                <div class="component-showcase">
+                    <h3 class="text-secondary">Secondary Buttons</h3>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary">Secondary Button</button>
+                        <button class="btn btn-ghost">Ghost Button</button>
+                        <button class="btn btn-primary" disabled>Disabled Button</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panels and Cards -->
+        <div class="demo-section">
+            <h2 class="text-primary">Panels & Cards</h2>
+            <div class="demo-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">Game Statistics</h3>
+                    </div>
+                    <div class="panel-content">
+                        <div class="game-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">42</span>
+                                <span class="stat-label">Games Played</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">85%</span>
+                                <span class="stat-label">Success Rate</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card card-interactive">
+                    <h3 class="text-primary">Interactive Card</h3>
+                    <p class="text-secondary">This card has hover effects and can be clicked.</p>
+                    <div class="badge">New</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bars -->
+        <div class="demo-section">
+            <h2 class="text-primary">Progress Bars</h2>
+            <div class="component-showcase">
+                <div style="margin-bottom: var(--spacing-md);">
+                    <label class="text-secondary">Rank Progress (75%)</label>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" style="width: 75%;"></div>
+                    </div>
+                </div>
+                <div style="margin-bottom: var(--spacing-md);">
+                    <label class="text-secondary">Loading (45%)</label>
+                    <div class="progress-bar progress-bar-lg">
+                        <div class="progress-bar-fill" style="width: 45%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Indicators -->
+        <div class="demo-section">
+            <h2 class="text-primary">Status Indicators</h2>
+            <div class="component-showcase">
+                <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm);">
+                    <div class="status-indicator status-success">Game Won</div>
+                    <div class="status-indicator status-warning">Time Running Out</div>
+                    <div class="status-indicator status-error">Game Failed</div>
+                    <div class="status-indicator status-info">New Hint Available</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rank Display -->
+        <div class="demo-section">
+            <h2 class="text-primary">Rank Display</h2>
+            <div class="component-showcase">
+                <div class="rank-display">
+                    <div class="rank-icon">🕵️</div>
+                    <div class="rank-info">
+                        <h4 class="rank-title">Detective</h4>
+                        <p class="rank-progress">Progress to FBI: 75%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Components -->
+        <div class="demo-section">
+            <h2 class="text-primary">Form Elements</h2>
+            <div class="component-showcase">
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    <input type="text" class="input" placeholder="Enter your guess...">
+                    <input type="text" class="input" value="Filled input" readonly>
+                    <input type="text" class="input" placeholder="Disabled input" disabled>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Demo -->
+        <div class="demo-section">
+            <h2 class="text-primary">Interactive Demo</h2>
+            <div class="component-showcase">
+                <button class="btn btn-primary" onclick="showToastDemo()">Show Toast Notification</button>
+                <button class="btn btn-secondary" onclick="showModalDemo()">Show Modal</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the UI components
+        import { UIComponents } from './style/components.js';
+        
+        window.showToastDemo = () => {
+            UIComponents.showToast('This is a success message!', 'success');
+        };
+        
+        window.showModalDemo = () => {
+            const modal = UIComponents.createModal({
+                isOpen: true,
+                title: 'Demo Modal',
+                onClose: () => {
+                    document.body.removeChild(modal);
+                }
+            });
+            
+            const content = modal.querySelector('.modal-content');
+            content.innerHTML = '<p>This is a demo modal with the Hide & Seek color scheme!</p>';
+            
+            const actions = modal.querySelector('.modal-actions');
+            const closeBtn = UIComponents.createButton('Close', { variant: 'secondary' });
+            closeBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+            actions.appendChild(closeBtn);
+            
+            document.body.appendChild(modal);
+        };
+    </script>
+</body>
+</html>
