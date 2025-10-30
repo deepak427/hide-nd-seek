@@ -25,6 +25,7 @@ export class Game extends Scene {
   private gameMode: 'hiding' | 'guessing' | 'dashboard' = 'hiding';
   private selectedHidingSpot: { x: number; y: number; relX: number; relY: number } | null = null;
   private selectedObject: string | null = null;
+  private gameId: string | null = null;
 
   
   // Environment detection and embedded game support
@@ -303,6 +304,7 @@ export class Game extends Scene {
    */
   private initStandaloneMode(data: GameInitData) {
     console.log('🖥️ Initializing standalone mode');
+    this.gameId = data.gameId ?? null;
     
     // Always use octmap for now since we have fallback textures for it
     const mapKey = 'octmap';
@@ -314,9 +316,6 @@ export class Game extends Scene {
     // Mode detection and setup (Requirements 8.4, 8.5)
     this.gameMode = this.detectGameMode(data);
     console.log(`🎮 Game mode detected: ${this.gameMode}`);
-
-    this.selectedHidingSpot = null;
-    this.selectedObject = null;
     
     // Initialize mode-specific data
     this.initializeModeSpecificData(data);
@@ -370,12 +369,13 @@ export class Game extends Scene {
    * Requirements: 8.4, 8.5 - Handle different interaction patterns for each mode
    */
   private initializeModeSpecificData(data: GameInitData) {
+    this.selectedHidingSpot = null;
+    this.selectedObject = null;
     switch (this.gameMode) {
       case 'hiding':
         console.log('🫥 Initializing hiding mode - player will create challenge');
         // No additional setup needed for hiding mode
         break;
-        
       case 'guessing':
         console.log('🔍 Initializing guessing mode - player will find hidden object');
         // Check for hiding spot data from server injection or embedded config
@@ -618,36 +618,42 @@ export class Game extends Scene {
    */
   private setupCreatorDashboard() {
     this.gameMode = 'dashboard';
-    
+
     // Creator can see all guesses and statistics
     // The map shows where the object is hidden
-    if (this.embeddedConfig?.hidingSpot) {
+    if (this.selectedHidingSpot) {
       this.showCreatorHidingSpot();
     }
-    
+
     // Create and load dashboard
-    this.guessDashboard = new GuessDashboard(this, this.embeddedConfig!.gameId);
-    this.guessDashboard.loadGuesses();
+    if (this.gameId) {
+      this.guessDashboard = new GuessDashboard(this, this.gameId);
+      this.guessDashboard.loadGuesses();
+    } else {
+      console.error('No gameId available for dashboard mode');
+    }
   }
 
   /**
    * Show the hiding spot to the creator
    */
   private showCreatorHidingSpot() {
-    if (!this.embeddedConfig?.hidingSpot) return;
-    
+    if (!this.selectedHidingSpot || !this.selectedObject) return;
+
     const mapBounds = this.mapLayer.getMap().getBounds();
-    const x = mapBounds.x + mapBounds.width * this.embeddedConfig.hidingSpot.relX;
-    const y = mapBounds.y + mapBounds.height * this.embeddedConfig.hidingSpot.relY;
-    
+    const x =
+      mapBounds.x + mapBounds.width * this.selectedHidingSpot.relX;
+    const y =
+      mapBounds.y + mapBounds.height * this.selectedHidingSpot.relY;
+
     // Show the hidden object to the creator
-    const hiddenObject = this.add.image(x, y, this.embeddedConfig.hidingSpot.objectKey);
+    const hiddenObject = this.add.image(x, y, this.selectedObject);
     hiddenObject.setScale(0.3);
     hiddenObject.setDepth(10);
     hiddenObject.setAlpha(0.8);
-    
+
     // Add a special glow for creator view
-    const glow = this.add.image(x, y, this.embeddedConfig.hidingSpot.objectKey);
+    const glow = this.add.image(x, y, this.selectedObject);
     glow.setTintFill(parseInt(Theme.accentCyan.replace('#', ''), 16));
     glow.setScale(0.35);
     glow.setAlpha(0.3);

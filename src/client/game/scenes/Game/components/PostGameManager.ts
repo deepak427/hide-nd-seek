@@ -100,10 +100,19 @@ export class PostGameManager {
         // Requirements 7.2: Show success popup with post URL and gameId
         this.showPostSuccess(response.postUrl, response.gameId);
         
-        // Redirect to the new Reddit post after a short delay
+        // Restart the game in dashboard mode for the creator
         this.scene.time.delayedCall(3000, () => {
-          console.log('🔗 Redirecting to Reddit post:', response.postUrl);
-          window.location.href = response.postUrl;
+          console.log('🔄 Restarting game in dashboard mode for creator');
+          this.scene.scene.start('Game', {
+            gameId: response.gameId,
+            userRole: 'creator',
+            hidingSpot: {
+              objectKey: gameData.objectKey,
+              relX: gameData.relX,
+              relY: gameData.relY,
+            },
+            mapKey: gameData.mapKey,
+          });
         });
       } else {
         this.errorHandler.showError({
