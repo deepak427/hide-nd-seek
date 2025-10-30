@@ -1,45 +1,34 @@
 import { Scene } from 'phaser';
 import { Theme } from '../../../style/theme';
 import { UIButton } from './components/UIButton';
-import { RankDisplay } from './components/RankDisplay';
 import { PlayerStatsPanel } from './components/PlayerStatsPanel';
 import { SceneTransition } from '../../utils/SceneTransition';
-import { RankProgressionNotification } from '../../components/RankProgressionNotification';
-import type { PlayerProfile, PlayerRank } from '../../../../shared/types/game';
 
 export class MainMenu extends Scene {
   private background!: Phaser.GameObjects.Graphics;
   private title!: Phaser.GameObjects.Text;
   private subtitle!: Phaser.GameObjects.Text;
   private playButton!: UIButton;
+  private guessButton!: UIButton;
+  private dashboardButton!: UIButton;
+  private leaderboardButton!: UIButton;
   private settingsButton!: UIButton;
   private creditsButton!: UIButton;
   private versionText!: Phaser.GameObjects.Text;
   
-  // Player rank and statistics components
-  private rankDisplay!: RankDisplay;
+  // Player statistics component
   private statsPanel!: PlayerStatsPanel;
-  private playerProfile!: PlayerProfile;
-  private rankNotification!: RankProgressionNotification;
+  
+  // Player profile data (placeholder)
+  private playerProfile: any = {
+    rank: { name: 'Beginner', icon: '🔍', color: Theme.accentCyan },
+    totalGuesses: 0,
+    successfulGuesses: 0,
+    successRate: 0
+  };
 
   constructor() {
     super('MainMenu');
-    this.rankNotification = new RankProgressionNotification(this);
-  }
-
-  private initializePlayerProfile() {
-    // TODO: In real implementation, fetch from API
-    // For now, create a mock profile for demonstration
-    this.playerProfile = {
-      userId: 'demo-user',
-      username: 'Player',
-      rank: 'GuessMaster' as PlayerRank,
-      totalGuesses: 25,
-      successfulGuesses: 12,
-      successRate: 0.48,
-      joinedAt: Date.now() - (30 * 24 * 60 * 60 * 1000), // 30 days ago
-      lastActive: Date.now()
-    };
   }
 
   create() {
@@ -50,11 +39,12 @@ export class MainMenu extends Scene {
     
     this.createBackground();
     this.createTitle();
-    this.createPlayerRankDisplay();
+    this.createPlayerStatsDisplay();
     this.createButtons();
     this.createFooter();
     this.setupAnimations();
     this.setupResize();
+    this.setupEventListeners();
     
     // Create smooth entrance animation
     SceneTransition.getInstance().createSceneEntrance(this, 'fade', 400);
@@ -116,56 +106,104 @@ export class MainMenu extends Scene {
     }).setOrigin(0.5);
   }
 
-  private createPlayerRankDisplay() {
+  private async createPlayerStatsDisplay() {
     const { width, height } = this.scale;
     
-    // Create rank display component
-    this.rankDisplay = new RankDisplay(this, width / 2, height * 0.4, this.playerProfile);
-    
     // Create player statistics panel
-    this.statsPanel = new PlayerStatsPanel(this, width / 2, height * 0.5, this.playerProfile);
+    this.statsPanel = new PlayerStatsPanel(this);
+    await this.statsPanel.create(width / 2, height * 0.4);
+  }
+
+  private initializePlayerProfile() {
+    // Initialize with default values - in real implementation, this would come from API
+    this.playerProfile = {
+      rank: { name: 'Beginner', icon: '🔍', color: Theme.accentCyan },
+      totalGuesses: 0,
+      successfulGuesses: 0,
+      successRate: 0
+    };
+    console.log('👤 Player profile initialized:', this.playerProfile);
   }
 
   private createButtons() {
     const { width, height } = this.scale;
     const centerX = width / 2;
-    const startY = height * 0.65;
-    const buttonSpacing = 70;
+    const startY = height * 0.6;
+    const buttonSpacing = 60;
     
     // Play button - primary action with enhanced styling
-    this.playButton = new UIButton(this, centerX, startY, 'PLAY', {
-      fontSize: '28px',
+    this.playButton = new UIButton(this, centerX, startY, 'CREATE GAME', {
+      fontSize: '24px',
       backgroundColor: Theme.accentCyan,
       hoverColor: Theme.accentHover,
       textColor: Theme.lightGray,
       width: 220,
-      height: 65
+      height: 55
     });
     this.playButton.onClick(() => {
       this.startGame();
     });
     
-    // Settings button
-    this.settingsButton = new UIButton(this, centerX, startY + buttonSpacing, 'SETTINGS', {
+    // Guess button - new option for guessing games
+    this.guessButton = new UIButton(this, centerX, startY + buttonSpacing, 'GUESS GAME', {
       fontSize: '22px',
+      backgroundColor: Theme.success,
+      hoverColor: '#45a049',
+      textColor: Theme.lightGray,
+      width: 200,
+      height: 50
+    });
+    this.guessButton.onClick(() => {
+      this.startGuessing();
+    });
+    
+    // Dashboard button - view game statistics
+    this.dashboardButton = new UIButton(this, centerX, startY + buttonSpacing * 2, 'DASHBOARD', {
+      fontSize: '22px',
+      backgroundColor: Theme.warning,
+      hoverColor: '#e68900',
+      textColor: Theme.lightGray,
+      width: 200,
+      height: 50
+    });
+    this.dashboardButton.onClick(() => {
+      this.openDashboard();
+    });
+    
+    // Leaderboard button
+    this.leaderboardButton = new UIButton(this, centerX, startY + buttonSpacing * 3, 'LEADERBOARD', {
+      fontSize: '20px',
+      backgroundColor: Theme.info,
+      hoverColor: Theme.accentHover,
+      textColor: Theme.lightGray,
+      width: 180,
+      height: 45
+    });
+    this.leaderboardButton.onClick(() => {
+      this.openLeaderboard();
+    });
+    
+    // Settings button
+    this.settingsButton = new UIButton(this, centerX, startY + buttonSpacing * 4, 'SETTINGS', {
+      fontSize: '20px',
       backgroundColor: Theme.secondaryDark,
       hoverColor: Theme.bgSecondary,
       textColor: Theme.lightGray,
       width: 180,
-      height: 50
+      height: 45
     });
     this.settingsButton.onClick(() => {
       this.showSettings();
     });
     
     // Credits button
-    this.creditsButton = new UIButton(this, centerX, startY + buttonSpacing * 2, 'CREDITS', {
-      fontSize: '22px',
+    this.creditsButton = new UIButton(this, centerX, startY + buttonSpacing * 5, 'CREDITS', {
+      fontSize: '20px',
       backgroundColor: Theme.secondaryDark,
       hoverColor: Theme.bgSecondary,
       textColor: Theme.lightGray,
       width: 180,
-      height: 50
+      height: 45
     });
     this.creditsButton.onClick(() => {
       this.showCredits();
@@ -227,49 +265,39 @@ export class MainMenu extends Scene {
       ease: 'Power2.easeOut'
     });
     
-    // Rank display entrance animation
-    if (this.rankDisplay) {
-      this.rankDisplay.container.setAlpha(0);
-      this.rankDisplay.container.setScale(0.9);
-      this.tweens.add({
-        targets: this.rankDisplay.container,
-        alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 600,
-        delay: 500,
-        ease: 'Back.easeOut'
-      });
-    }
-    
     // Stats panel entrance animation
-    if (this.statsPanel) {
-      this.statsPanel.container.setAlpha(0);
-      this.statsPanel.container.setY(this.statsPanel.container.y + 30);
-      this.tweens.add({
-        targets: this.statsPanel.container,
-        alpha: 1,
-        y: this.statsPanel.container.y - 30,
-        duration: 600,
-        delay: 700,
-        ease: 'Power2.easeOut'
-      });
+    if (this.statsPanel && this.statsPanel.getContainer()) {
+      const container = this.statsPanel.getContainer();
+      if (container) {
+        container.setAlpha(0);
+        container.setY(container.y + 30);
+        this.tweens.add({
+          targets: container,
+          alpha: 1,
+          y: container.y - 30,
+          duration: 600,
+          delay: 500,
+          ease: 'Power2.easeOut'
+        });
+      }
     }
     
     // Stagger button animations
-    const buttons = [this.playButton, this.settingsButton, this.creditsButton];
+    const buttons = [this.playButton, this.guessButton, this.dashboardButton, this.leaderboardButton, this.settingsButton, this.creditsButton];
     buttons.forEach((button, index) => {
-      button.container.setAlpha(0);
-      button.container.setY(button.container.y + 30);
-      
-      this.tweens.add({
-        targets: button.container,
-        alpha: 1,
-        y: button.container.y - 30,
-        duration: 600,
-        delay: 900 + index * 150,
-        ease: 'Back.easeOut'
-      });
+      if (button && button.container) {
+        button.container.setAlpha(0);
+        button.container.setY(button.container.y + 30);
+        
+        this.tweens.add({
+          targets: button.container,
+          alpha: 1,
+          y: button.container.y - 30,
+          duration: 600,
+          delay: 700 + index * 100,
+          ease: 'Back.easeOut'
+        });
+      }
     });
   }
 
@@ -297,22 +325,25 @@ export class MainMenu extends Scene {
     this.title.setPosition(width / 2, height * 0.2);
     this.subtitle.setPosition(width / 2, height * 0.28);
     
-    // Update rank display and stats panel
-    if (this.rankDisplay) {
-      this.rankDisplay.setPosition(width / 2, height * 0.4);
-    }
-    if (this.statsPanel) {
-      this.statsPanel.setPosition(width / 2, height * 0.5);
+    // Update stats panel position
+    if (this.statsPanel && this.statsPanel.getContainer()) {
+      const container = this.statsPanel.getContainer();
+      if (container) {
+        container.setPosition(width / 2, height * 0.4);
+      }
     }
     
     // Update button positions
     const centerX = width / 2;
-    const startY = height * 0.65;
-    const buttonSpacing = 70;
+    const startY = height * 0.55;
+    const buttonSpacing = 60;
     
-    this.playButton.setPosition(centerX, startY);
-    this.settingsButton.setPosition(centerX, startY + buttonSpacing);
-    this.creditsButton.setPosition(centerX, startY + buttonSpacing * 2);
+    if (this.playButton) this.playButton.setPosition(centerX, startY);
+    if (this.guessButton) this.guessButton.setPosition(centerX, startY + buttonSpacing);
+    if (this.dashboardButton) this.dashboardButton.setPosition(centerX, startY + buttonSpacing * 2);
+    if (this.leaderboardButton) this.leaderboardButton.setPosition(centerX, startY + buttonSpacing * 3);
+    if (this.settingsButton) this.settingsButton.setPosition(centerX, startY + buttonSpacing * 4);
+    if (this.creditsButton) this.creditsButton.setPosition(centerX, startY + buttonSpacing * 5);
     
     // Update footer
     this.versionText.setPosition(width - 20, height - 20);
@@ -325,6 +356,27 @@ export class MainMenu extends Scene {
     SceneTransition.getInstance().fadeToScene(this, 'MapSelection', undefined, 500);
   }
 
+  private startGuessing() {
+    console.log('🔍 Starting guess scene');
+    
+    // Use smooth transition to guess scene
+    SceneTransition.getInstance().fadeToScene(this, 'GuessScene', undefined, 500);
+  }
+
+  private openDashboard() {
+    console.log('📊 Opening dashboard');
+    
+    // Use smooth transition to dashboard
+    SceneTransition.getInstance().fadeToScene(this, 'Dashboard', undefined, 500);
+  }
+
+  private openLeaderboard() {
+    console.log('🏆 Opening leaderboard');
+    
+    // Use smooth transition to leaderboard
+    SceneTransition.getInstance().fadeToScene(this, 'LeaderboardScene', undefined, 500);
+  }
+
   private showSettings() {
     // Placeholder for settings
     console.log('Settings clicked - TODO: Implement settings menu');
@@ -333,5 +385,28 @@ export class MainMenu extends Scene {
   private showCredits() {
     // Placeholder for credits
     console.log('Credits clicked - TODO: Implement credits screen');
+  }
+
+  private setupEventListeners() {
+    // Listen for player stats updates from other scenes
+    this.events.on('refresh-player-stats', () => {
+      this.refreshPlayerStats();
+    });
+    
+    // Listen for global player stats updates
+    this.game.events.on('player-stats-updated', () => {
+      this.refreshPlayerStats();
+    });
+  }
+
+  private async refreshPlayerStats() {
+    if (this.statsPanel) {
+      try {
+        await this.statsPanel.refresh();
+        console.log('🔄 Player stats refreshed');
+      } catch (error) {
+        console.error('Failed to refresh player stats:', error);
+      }
+    }
   }
 }

@@ -40,8 +40,6 @@ export class GuessDashboard {
 
   async loadGuesses(): Promise<void> {
     try {
-      console.log('📊 Loading guess dashboard data...');
-      
       const guessData: GuessStatistics = await this.networkService.get(
         `/api/guesses?gameId=${this.gameId}`,
         {
@@ -50,14 +48,32 @@ export class GuessDashboard {
           retries: 2
         }
       );
-      
+
       this.displayGuesses(guessData);
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Failed to load guess dashboard:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        status: error?.status,
+        response: error?.response
+      });
+
+      // Show more specific error message
+      let errorMessage = 'Failed to load guess data. ';
+      if (error?.status === 403) {
+        errorMessage += 'You do not have permission to view this dashboard.';
+      } else if (error?.status === 404) {
+        errorMessage += 'Game not found.';
+      } else if (error?.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Please try refreshing.';
+      }
+
       this.errorHandler.showError({
         title: 'Dashboard Error',
-        message: 'Failed to load guess data. Please try refreshing.',
+        message: errorMessage,
         type: 'error',
         showRetry: true,
         retryCallback: () => this.loadGuesses()
@@ -72,42 +88,45 @@ export class GuessDashboard {
     }
 
     const { width, height } = this.scene.scale;
-    
+
     // Create main dashboard panel
     const panelBg = this.scene.add.graphics();
-    panelBg.fillStyle(parseInt(Theme.bgCard.replace('#', ''), 16), 0.95);
+    panelBg.fillStyle(parseInt(Theme.bgPanel.replace('#', ''), 16), 0.95);
     panelBg.fillRoundedRect(-300, -250, 600, 500, Theme.radiusMedium);
     panelBg.lineStyle(2, parseInt(Theme.borderLight.replace('#', ''), 16));
     panelBg.strokeRoundedRect(-300, -250, 600, 500, Theme.radiusMedium);
-    
+
     // Title
     const title = this.scene.add.text(0, -220, '📊 Guess Dashboard', {
       fontSize: '28px',
       fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.primary,
+      color: Theme.accentCyan,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    
+
     // Statistics section
     const statsElements = this.createStatisticsSection(guessData);
-    
+
     // Recent guesses section
     const guessElements = this.createGuessesSection(guessData.guesses);
-    
+
     // Refresh info
     const lastUpdate = this.scene.add.text(0, 220, `Last updated: ${new Date().toLocaleTimeString()}`, {
       fontSize: '12px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary
     }).setOrigin(0.5);
-    
+
+    // Add manual refresh button
+    const refreshButton = this.createRefreshButton();
+
     // Combine all elements
-    const allElements = [panelBg, title, lastUpdate, ...statsElements, ...guessElements];
-    
+    const allElements = [panelBg, title, lastUpdate, refreshButton, ...statsElements, ...guessElements];
+
     // Create dashboard container
     this.dashboardContainer = this.scene.add.container(width / 2, height / 2, allElements);
     this.dashboardContainer.setDepth(Theme.zIndexUI);
-    
+
     // Entrance animation
     this.dashboardContainer.setAlpha(0);
     this.dashboardContainer.setScale(0.9);
@@ -119,14 +138,14 @@ export class GuessDashboard {
       duration: 500,
       ease: 'Back.easeOut'
     });
-    
+
     // Set up auto-refresh
     this.setupAutoRefresh();
   }
 
   private createStatisticsSection(guessData: GuessStatistics): Phaser.GameObjects.GameObject[] {
     const elements: Phaser.GameObjects.GameObject[] = [];
-    
+
     // Statistics title
     const statsTitle = this.scene.add.text(0, -170, 'Statistics', {
       fontSize: '20px',
@@ -135,50 +154,41 @@ export class GuessDashboard {
       fontStyle: 'bold'
     }).setOrigin(0.5);
     elements.push(statsTitle);
-    
-    // Statistics grid
+
+    // Statistics grid with defensive programming
     const stats = [
-      { label: 'Total Guesses', value: guessData.totalGuesses.toString(), color: Theme.primary },
-      { label: 'Correct Guesses', value: guessData.correctGuesses.toString(), color: Theme.success },
-      { label: 'Unique Players', value: guessData.uniqueGuessers.toString(), color: Theme.accent },
-      { label: 'Success Rate', value: `${guessData.totalGuesses > 0 ? Math.round((guessData.correctGuesses / guessData.totalGuesses) * 100) : 0}%`, color: Theme.warning }
+      { label: 'Total Guesses', value: (guessData.totalGuesses || 0).toString(), color: Theme.accentCyan },
+      { label: 'Correct Guesses', value: (guessData.correctGuesses || 0).toString(), color: Theme.success },
+      { label: 'Unique Players', value: (guessData.uniqueGuessers || 0).toString(), color: Theme.accentPrimary },
+      { label: 'Success Rate', value: `${(guessData.totalGuesses || 0) > 0 ? Math.round(((guessData.correctGuesses || 0) / (guessData.totalGuesses || 1)) * 100) : 0}%`, color: Theme.warning }
     ];
-    
+
     stats.forEach((stat, index) => {
       const x = (index % 2) * 200 - 100; // Two columns
       const y = -130 + Math.floor(index / 2) * 40;
-      
+
       const statLabel = this.scene.add.text(x, y, stat.label, {
         fontSize: '14px',
         fontFamily: 'Inter, Arial, sans-serif',
         color: Theme.textSecondary
       }).setOrigin(0.5);
-      
+
       const statValue = this.scene.add.text(x, y + 18, stat.value, {
         fontSize: '20px',
         fontFamily: 'Inter, Arial, sans-serif',
         color: stat.color,
         fontStyle: 'bold'
       }).setOrigin(0.5);
-      
+
       elements.push(statLabel, statValue);
     });
-    
+
     return elements;
   }
 
   private createGuessesSection(guesses: GuessData[]): Phaser.GameObjects.GameObject[] {
     const elements: Phaser.GameObjects.GameObject[] = [];
-    
-    // Guesses title
-    const guessesTitle = this.scene.add.text(0, -40, 'Recent Guesses', {
-      fontSize: '20px',
-      fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.textPrimary,
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    elements.push(guessesTitle);
-    
+
     if (guesses.length === 0) {
       const noGuesses = this.scene.add.text(0, 20, 'No guesses yet...\nShare your post to get players!', {
         fontSize: '16px',
@@ -189,82 +199,76 @@ export class GuessDashboard {
       elements.push(noGuesses);
       return elements;
     }
-    
-    // Show last 6 guesses
-    const recentGuesses = guesses.slice(-6).reverse();
-    
-    recentGuesses.forEach((guess, index) => {
-      const y = -5 + (index * 30);
-      
-      // Guess status icon
-      const statusIcon = this.scene.add.text(-250, y, guess.isCorrect ? '✅' : '❌', {
-        fontSize: '16px'
-      });
-      
-      // Player name
-      const playerName = this.scene.add.text(-220, y, guess.username, {
-        fontSize: '14px',
+
+    // Show correct answer first
+    const correctAnswer = this.getCorrectAnswer(guesses);
+    if (correctAnswer) {
+      const correctTitle = this.scene.add.text(0, -40, '✅ Correct Answer', {
+        fontSize: '18px',
         fontFamily: 'Inter, Arial, sans-serif',
-        color: Theme.textPrimary,
+        color: Theme.success,
         fontStyle: 'bold'
-      });
-      
-      // Guessed object
-      const guessedObject = this.scene.add.text(-100, y, guess.objectKey, {
-        fontSize: '14px',
+      }).setOrigin(0.5);
+      elements.push(correctTitle);
+
+      const correctText = this.scene.add.text(0, -15, correctAnswer, {
+        fontSize: '20px',
         fontFamily: 'Inter, Arial, sans-serif',
-        color: Theme.textSecondary
-      });
-      
-      // Distance/accuracy
-      let accuracyText = '';
-      if (guess.isCorrect) {
-        accuracyText = 'Perfect!';
-      } else {
-        const distancePercent = Math.round(guess.distance * 100);
-        accuracyText = `${distancePercent}% off`;
-      }
-      
-      const accuracy = this.scene.add.text(50, y, accuracyText, {
-        fontSize: '12px',
+        color: Theme.success,
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+      elements.push(correctText);
+    }
+
+    // Object guess counts section
+    const objectCountsTitle = this.scene.add.text(0, 15, 'Guess Counts', {
+      fontSize: '18px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textPrimary,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    elements.push(objectCountsTitle);
+
+    // Calculate guess counts by object
+    const objectCounts = this.calculateObjectCounts(guesses);
+    const objectEntries = Object.entries(objectCounts).sort((a, b) => b[1] - a[1]); // Sort by count descending
+
+    // Display object counts
+    objectEntries.forEach((entry, index) => {
+      const [objectKey, count] = entry;
+      const y = 45 + (index * 25);
+
+      // Object name and count
+      const objectText = this.scene.add.text(0, y, `${objectKey} - ${count}`, {
+        fontSize: '16px',
         fontFamily: 'Inter, Arial, sans-serif',
-        color: guess.isCorrect ? Theme.success : Theme.warning
-      });
-      
-      // Time ago
-      const timeAgo = this.getTimeAgo(guess.timestamp);
-      const timeText = this.scene.add.text(150, y, timeAgo, {
-        fontSize: '12px',
-        fontFamily: 'Inter, Arial, sans-serif',
-        color: Theme.textSecondary
-      });
-      
-      elements.push(statusIcon, playerName, guessedObject, accuracy, timeText);
-      
-      // Add separator line (except for last item)
-      if (index < recentGuesses.length - 1) {
-        const separator = this.scene.add.graphics();
-        separator.lineStyle(1, parseInt(Theme.borderLight.replace('#', ''), 16), 0.3);
-        separator.lineBetween(-250, y + 15, 250, y + 15);
-        elements.push(separator);
-      }
+        color: Theme.accentCyan,
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      elements.push(objectText);
     });
-    
+
     return elements;
   }
 
-  private getTimeAgo(timestamp: number): string {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
+  private getCorrectAnswer(guesses: GuessData[]): string | null {
+    const correctGuess = guesses.find(guess => guess.isCorrect);
+    return correctGuess ? correctGuess.objectKey : null;
   }
+
+  private calculateObjectCounts(guesses: GuessData[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+
+    guesses.forEach(guess => {
+      const objectKey = guess.objectKey;
+      counts[objectKey] = (counts[objectKey] || 0) + 1;
+    });
+
+    return counts;
+  }
+
+
 
   private setupAutoRefresh(): void {
     // Auto-refresh every 30 seconds
@@ -278,11 +282,9 @@ export class GuessDashboard {
   }
 
   async refreshData(): Promise<void> {
-    console.log('🔄 Refreshing dashboard data...');
-    
     // Show refresh indicator
     this.showRefreshIndicator();
-    
+
     try {
       const guessData: GuessStatistics = await this.networkService.get(
         `/api/guesses?gameId=${this.gameId}`,
@@ -291,27 +293,65 @@ export class GuessDashboard {
           timeout: 5000
         }
       );
-      
+
       this.displayGuesses(guessData);
-      
+
     } catch (error) {
-      console.error('Failed to refresh dashboard:', error);
       // Don't show error popup for refresh failures, just log
     }
   }
 
+  private createRefreshButton(): Phaser.GameObjects.Container {
+    // Button background
+    const btnBg = this.scene.add.graphics();
+    btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
+    btnBg.fillRoundedRect(-40, -15, 80, 30, 5);
+
+    // Button text
+    const btnText = this.scene.add.text(0, 0, '🔄 Refresh', {
+      fontSize: '12px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textPrimary,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    const button = this.scene.add.container(200, -220, [btnBg, btnText]);
+    button.setSize(80, 30);
+    button.setInteractive();
+
+    // Hover effects
+    button.on('pointerover', () => {
+      btnBg.clear();
+      btnBg.fillStyle(parseInt(Theme.accentHover.replace('#', ''), 16));
+      btnBg.fillRoundedRect(-40, -15, 80, 30, 5);
+    });
+
+    button.on('pointerout', () => {
+      btnBg.clear();
+      btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
+      btnBg.fillRoundedRect(-40, -15, 80, 30, 5);
+    });
+
+    button.on('pointerdown', () => {
+      console.log('🔄 Manual refresh triggered');
+      this.refreshData();
+    });
+
+    return button;
+  }
+
   private showRefreshIndicator(): void {
     if (!this.dashboardContainer) return;
-    
+
     // Create refresh spinner
     const spinner = this.scene.add.graphics();
-    spinner.lineStyle(3, parseInt(Theme.primary.replace('#', ''), 16));
+    spinner.lineStyle(3, parseInt(Theme.accentCyan.replace('#', ''), 16));
     spinner.strokeCircle(250, -220, 12);
     spinner.setDepth(Theme.zIndexUI + 1);
-    
+
     // Add to dashboard
     this.dashboardContainer.add(spinner);
-    
+
     // Spinning animation
     this.scene.tweens.add({
       targets: spinner,
@@ -333,13 +373,13 @@ export class GuessDashboard {
       this.dashboardContainer.destroy();
       this.dashboardContainer = null;
     }
-    
+
     // Clean up auto-refresh timer
     if (this.autoRefreshTimer) {
       this.autoRefreshTimer.destroy();
       this.autoRefreshTimer = null;
     }
-    
+
     // Clean up error handling services
     this.errorHandler.destroy();
     this.networkService.destroy();

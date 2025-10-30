@@ -68,6 +68,8 @@ export interface GetGuessesResponse {
   guesses: GuessData[];
   totalGuesses: number;
   correctGuesses: number;
+  uniqueGuessers: number;
+  averageDistance: number;
 }
 
 // Player statistics API types
@@ -147,6 +149,28 @@ export interface AuthorizationResponse {
   success: boolean;
   authorized: boolean;
   message?: string;
+}
+
+// Leaderboard API types
+export interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  totalGamesPlayed: number;
+  gamesWon: number;
+  winRate: number;
+  rankPoints: number;
+  currentRank: {
+    name: string;
+    icon: string;
+    color: string;
+  };
+}
+
+export interface GetLeaderboardResponse {
+  success: boolean;
+  leaderboard: LeaderboardEntry[];
+  playerPosition?: number;
+  totalPlayers: number;
 }
 
 // Legacy types for backward compatibility (deprecated - use new types above)

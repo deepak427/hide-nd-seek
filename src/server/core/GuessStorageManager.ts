@@ -90,6 +90,7 @@ export class GuessStorageManager {
     } catch (error) {
       console.error('Error recording guess:', error);
       ErrorHandlingService.handleDatabaseError(error, 'recordGuess');
+      throw error; // This line will never be reached, but TypeScript needs it
     }
   }
 

@@ -37,6 +37,12 @@ export interface GameInitData {
   postId?: string;
   userId?: string;
   objectKey?: string;
+  userRole?: 'creator' | 'guesser';
+  hidingSpot?: {
+    objectKey: string;
+    relX: number;
+    relY: number;
+  };
   gameData?: any;
   environment?: EnvironmentDetection;
   embeddedConfig?: EmbeddedGameConfig;

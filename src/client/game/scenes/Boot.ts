@@ -12,7 +12,7 @@ export class Boot extends Scene {
 
   preload() {
     // Enhanced boot screen with loading indicator
-    this.cameras.main.setBackgroundColor(Theme.bgDark);
+    this.cameras.main.setBackgroundColor(Theme.bgPrimary);
     
     // Create a simple loading indicator
     const { width, height } = this.scale;
@@ -21,7 +21,7 @@ export class Boot extends Scene {
     const title = this.add.text(width / 2, height / 2 - 50, 'HIDE & SEEK', {
       fontSize: '48px',
       fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.primary,
+      color: Theme.accentCyan,
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
@@ -53,7 +53,7 @@ export class Boot extends Scene {
   create() {
     // Enhanced boot sequence with environment detection
     console.log('🔧 Boot scene initialized');
-    console.log('🎮 Phaser version:', this.game.version);
+    console.log('🎮 Phaser version:', (this.game as any).version || 'Unknown');
     console.log('🖥️ Renderer type:', this.renderer.type === 0 ? 'Canvas' : 'WebGL');
     
     // Check if renderer is properly initialized
@@ -87,9 +87,9 @@ export class Boot extends Scene {
         console.log('🚀 BOOT: GameInitData mode:', gameInitData?.mode);
         console.log('🚀 BOOT: Should go to guessing?', detection.mode === 'embedded' || gameInitData?.mode === 'guessing');
         
-        if (detection.mode === 'embedded' || gameInitData?.mode === 'guessing') {
-          // Skip splash and menu for embedded mode or guessing mode - go directly to game
-          console.log('🚀 BOOT: GOING TO GUESSING MODE - Starting game directly');
+        if (detection.mode === 'embedded' || gameInitData?.mode === 'guessing' || gameInitData?.mode === 'dashboard') {
+          // Skip splash and menu for embedded mode or guessing/dashboard mode - go directly to game
+          console.log('🚀 BOOT: GOING TO EMBEDDED MODE - Starting game directly');
           const gameData = {
             mapKey: gameInitData?.mapKey || 'octmap',
             mode: gameInitData?.mode || 'guessing',
@@ -97,6 +97,8 @@ export class Boot extends Scene {
             postId: gameInitData?.postId,
             userId: gameInitData?.userId,
             objectKey: gameInitData?.objectKey,
+            userRole: gameInitData?.userRole,
+            hidingSpot: gameInitData?.hidingSpot,
             environment: detection
           };
           console.log('🚀 BOOT: Game data being passed to Game scene:', gameData);

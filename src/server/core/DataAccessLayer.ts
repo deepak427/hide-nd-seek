@@ -47,12 +47,14 @@ export class DataAccessLayer {
     mapKey: string,
     hidingSpot: HidingSpot,
     postId?: string,
-    postUrl?: string
+    postUrl?: string,
+    creatorUsername?: string
   ): Promise<boolean> {
     try {
       const gameSession: GameSession = {
         gameId,
         creator,
+        creatorUsername,
         mapKey,
         hidingSpot,
         createdAt: Date.now(),

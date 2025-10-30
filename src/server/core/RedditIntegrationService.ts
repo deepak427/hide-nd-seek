@@ -30,13 +30,12 @@ export class RedditIntegrationService {
         async () => {
           return await reddit.submitCustomPost({
             subredditName: subredditName!,
-            title: RedditIntegrationService.generatePostTitle(gameData.mapKey, gameData.objectKey),
+            title: RedditIntegrationService.generatePostTitle(gameData.mapKey, gameData.objectKey, gameData.gameId),
             splash: {
               appDisplayName: 'Hide & Seek',
               backgroundUri: 'splash.png',
               buttonLabel: 'Play Game',
               description: RedditIntegrationService.generateSplashDescription(gameData.mapKey, gameData.objectKey),
-              entryUri: `game/${gameData.gameId}`,
               heading: 'Hide & Seek Challenge',
               appIconUri: 'splash.png',
             },
@@ -52,7 +51,7 @@ export class RedditIntegrationService {
         RedditIntegrationService.BASE_DELAY
       );
 
-      const postUrl = `https://www.reddit.com${post.permalink || '/unknown'}`;
+      const postUrl = `https://www.reddit.com${post.permalink ?? '/unknown'}`;
       
       console.log(`📝 Created Reddit post: ${postUrl} for game ${gameData.gameId}`);
 
@@ -63,22 +62,26 @@ export class RedditIntegrationService {
       };
     } catch (error) {
       ErrorHandlingService.handleRedditError(error, 'createGamePost');
+      throw error; // Re-throw after handling
     }
   }
 
   /**
-   * Generate a compelling post title
+   * Generate a compelling post title with Game ID
    */
-  private static generatePostTitle(mapKey: string, objectKey: string): string {
+  private static generatePostTitle(mapKey: string, objectKey: string, gameId?: string): string {
     const mapName = RedditIntegrationService.formatMapName(mapKey);
     const objectName = RedditIntegrationService.formatObjectName(objectKey);
     
+    // Generate short game ID for title (first 5 characters, uppercase)
+    const shortGameId = gameId ? gameId.substring(0, 5).toUpperCase() : '';
+    
     const titles = [
-      `🔍 Hide & Seek Challenge - Can you find the hidden ${objectName} in ${mapName}?`,
-      `🎯 Spot the ${objectName}! Hidden somewhere in ${mapName}`,
-      `🕵️ Detective Challenge: Find the ${objectName} in ${mapName}`,
-      `🎮 Hide & Seek: Where's the ${objectName} in ${mapName}?`,
-      `🔎 Can you spot the hidden ${objectName}? Challenge in ${mapName}!`
+      `🔍 [${shortGameId}] Hide & Seek - Find the hidden ${objectName} in ${mapName}!`,
+      `🎯 [${shortGameId}] Spot the ${objectName}! Hidden in ${mapName}`,
+      `🕵️ [${shortGameId}] Detective Challenge: Find the ${objectName} in ${mapName}`,
+      `🎮 [${shortGameId}] Hide & Seek: Where's the ${objectName} in ${mapName}?`,
+      `🔎 [${shortGameId}] Can you spot the hidden ${objectName} in ${mapName}?`
     ];
 
     // Use a simple hash to pick a consistent title for the same map/object combo

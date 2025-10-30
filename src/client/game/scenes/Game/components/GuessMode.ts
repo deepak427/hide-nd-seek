@@ -12,11 +12,13 @@ export class GuessMode {
   private hasGuessed: boolean = false;
   private errorHandler: ErrorHandler;
   private networkService: NetworkService;
+  private userRole: string;
 
-  constructor(scene: Scene, gameId: string, hidingSpot: { objectKey: string; relX: number; relY: number }) {
+  constructor(scene: Scene, gameId: string, hidingSpot: { objectKey: string; relX: number; relY: number }, userRole: string = 'guesser') {
     this.scene = scene;
     this.gameId = gameId;
     this.hidingSpot = hidingSpot;
+    this.userRole = userRole;
     this.errorHandler = new ErrorHandler(scene);
     this.networkService = new NetworkService(scene);
   }
@@ -24,39 +26,71 @@ export class GuessMode {
   setupInteractiveObjects(mapBounds: Phaser.Geom.Rectangle): void {
     console.log('🔍 Setting up interactive objects for guessing');
     
-    // Define possible object locations throughout the map
-    const objectTypes = ['pumpkin', 'wardrobe', 'bush', 'car', 'truck', 'guard'];
-    const objectPositions = this.generateObjectPositions(mapBounds, 12); // Generate 12 possible positions
+    // Use the same object positions as MapLayer for consistency
+    const objectData = this.getFixedObjectPositions();
     
-    // Create interactive objects at various positions
-    objectPositions.forEach((pos, index) => {
-      const objectKey = objectTypes[index % objectTypes.length];
-      
+    // Create interactive objects at the same positions as in creation mode
+    objectData.forEach((objData) => {
       // Only create if texture exists
-      if (objectKey && this.scene.textures.exists(objectKey)) {
-        const obj = this.scene.add.image(pos.x, pos.y, objectKey);
-        obj.setScale(0.25);
+      if (objData.key && this.scene.textures.exists(objData.key)) {
+        // Calculate position using relative coordinates (same as MapLayer)
+        const x = mapBounds.x + (objData.x * mapBounds.width);
+        const y = mapBounds.y + (objData.y * mapBounds.height);
+        
+        const obj = this.scene.add.image(x, y, objData.key);
+        
+        // Use the same scaling logic as MapLayer
+        const baseScale = Math.min(mapBounds.width / 1200, mapBounds.height / 800);
+        let objectScale = baseScale * 0.25; // Base scale
+        
+        // Apply same scaling rules as MapLayer
+        switch (objData.key) {
+          case 'guard':
+            objectScale = baseScale * 0.35;
+            break;
+          case 'car':
+          case 'truck':
+            objectScale = baseScale * 0.4;
+            break;
+          case 'wardrobe':
+            objectScale = baseScale * 0.3;
+            break;
+          case 'bush':
+          case 'pumpkin':
+            objectScale = baseScale * 0.2;
+            break;
+          default:
+            objectScale = baseScale * 0.25;
+        }
+        
+        obj.setScale(objectScale);
         obj.setDepth(5);
         obj.setInteractive();
-        obj.setAlpha(0.7); // Make them slightly transparent to indicate they're clickable
+        obj.setAlpha(0.8); // Slightly transparent to indicate they're clickable
+        
+        // Store data for click handling
+        obj.setData('objectKey', objData.key);
+        obj.setData('relativeX', objData.x);
+        obj.setData('relativeY', objData.y);
+        obj.setData('originalScale', objectScale);
         
         // Add hover effects
         obj.on('pointerover', () => {
-          obj.setScale(0.3);
+          obj.setScale(objectScale * 1.15);
           obj.setAlpha(1);
           obj.setTint(parseInt(Theme.accentCyan.replace('#', ''), 16));
         });
         
         obj.on('pointerout', () => {
-          obj.setScale(0.25);
-          obj.setAlpha(0.7);
+          obj.setScale(objectScale);
+          obj.setAlpha(0.8);
           obj.clearTint();
         });
         
         // Handle click
         obj.on('pointerdown', () => {
           if (!this.hasGuessed) {
-            this.submitGuess(objectKey, pos.relX, pos.relY, pos.x, pos.y);
+            this.submitGuess(objData.key, objData.x, objData.y, x, y);
           }
         });
         
@@ -68,20 +102,32 @@ export class GuessMode {
     this.showInstruction();
   }
 
-  private generateObjectPositions(mapBounds: Phaser.Geom.Rectangle, count: number): Array<{x: number, y: number, relX: number, relY: number}> {
-    const positions = [];
-    const padding = 50; // Padding from edges
-    
-    for (let i = 0; i < count; i++) {
-      const x = mapBounds.x + padding + Math.random() * (mapBounds.width - padding * 2);
-      const y = mapBounds.y + padding + Math.random() * (mapBounds.height - padding * 2);
-      const relX = (x - mapBounds.x) / mapBounds.width;
-      const relY = (y - mapBounds.y) / mapBounds.height;
+  /**
+   * Get the same fixed object positions as used in MapLayer
+   * This ensures consistency between creation and guessing modes
+   */
+  private getFixedObjectPositions() {
+    return [
+      // OUTDOOR OBJECTS (Top half of map)
+      // Bush - in the ground/field area (top-left)
+      { key: 'bush', name: 'Bush', x: 0.15, y: 0.25, width: 40, height: 40, interactive: true },
       
-      positions.push({ x, y, relX, relY });
-    }
-    
-    return positions;
+      // Pumpkin - on the veranda/deck area (top-center)
+      { key: 'pumpkin', name: 'Pumpkin', x: 0.5, y: 0.28, width: 35, height: 35, interactive: true },
+      
+      // Car - on the road (top-right)
+      { key: 'car', name: 'Car', x: 0.75, y: 0.32, width: 60, height: 30, interactive: true },
+      
+      // Truck - on the road, slightly different position than car
+      { key: 'truck', name: 'Truck', x: 0.85, y: 0.25, width: 70, height: 35, interactive: true },
+      
+      // INDOOR OBJECTS (Bottom half of map)
+      // Guard - at the door/entrance of the hall (bottom-center)
+      { key: 'guard', name: 'Guard', x: 0.5, y: 0.75, width: 25, height: 45, interactive: true },
+      
+      // Wardrobe - in the hall near the side (bottom-left area)
+      { key: 'wardrobe', name: 'Wardrobe', x: 0.2, y: 0.8, width: 45, height: 80, interactive: true }
+    ];
   }
 
   private showInstruction(): void {
@@ -115,8 +161,13 @@ export class GuessMode {
   async submitGuess(objectKey: string, relX: number, relY: number, screenX: number, screenY: number): Promise<void> {
     if (this.hasGuessed) return;
     
+    // Prevent creators from guessing their own games
+    if (this.userRole === 'creator') {
+      this.showCreatorCannotGuessMessage();
+      return;
+    }
+    
     this.hasGuessed = true;
-    console.log(`📤 Submitting guess: ${objectKey} at (${relX.toFixed(2)}, ${relY.toFixed(2)})`);
     
     try {
       // Show loading indicator at guess location
@@ -131,29 +182,28 @@ export class GuessMode {
       }, {
         retries: 2,
         timeout: 5000
-      });
+      }) as any; // Type assertion for now
       
-      // Use rank progression data from server response
-      let rankData = undefined;
-      if (result.rankProgression) {
-        rankData = {
-          currentRank: result.rankProgression.currentRank,
-          progressPercentage: result.rankProgression.progressPercentage,
-          nextRank: result.rankProgression.nextRank,
-          rankChanged: false // We'd need to track previous rank to detect changes
-        };
-      }
-      
-      this.showGuessResult(screenX, screenY, result.isCorrect, result.message, result.distance, rankData);
+      this.showGuessResult(screenX, screenY, result.isCorrect, result.message);
       
       if (result.isCorrect) {
         this.revealHiddenObject();
         this.createCelebrationEffect();
       }
       
-    } catch (error) {
-      console.error('Guess submission error:', error);
-      this.showGuessError(screenX, screenY);
+      // Trigger stats refresh in main menu if available
+      this.triggerStatsRefresh();
+      
+      // Disable all further interactions
+      this.disableAllInteractions();
+      
+    } catch (error: any) {
+      // Check if it's an "already guessed" error
+      if (error?.message?.includes('already guessed')) {
+        this.showAlreadyGuessedMessage();
+      } else {
+        this.showGuessError(screenX, screenY);
+      }
     }
   }
 
@@ -361,6 +411,152 @@ export class GuessMode {
     // Clean up after celebration
     this.scene.time.delayedCall(4000, () => {
       confetti.destroy();
+    });
+  }
+
+  private triggerStatsRefresh(): void {
+    // Emit an event that the main menu can listen to for stats refresh
+    this.scene.events.emit('player-stats-updated');
+    
+    // Also try to refresh any active stats panels
+    this.scene.scene.get('MainMenuScene')?.events.emit('refresh-player-stats');
+  }
+
+  private showCreatorCannotGuessMessage(): void {
+    const { width, height } = this.scene.scale;
+    
+    // Create modal background
+    const modalBg = this.scene.add.graphics();
+    modalBg.fillStyle(parseInt(Theme.bgModal.replace('#', ''), 16), 0.9);
+    modalBg.fillRect(0, 0, width, height);
+    modalBg.setDepth(25);
+    
+    // Create message panel
+    const panelBg = this.scene.add.graphics();
+    panelBg.fillStyle(parseInt(Theme.bgPanel.replace('#', ''), 16), 0.95);
+    panelBg.fillRoundedRect(-200, -100, 400, 200, 12);
+    panelBg.lineStyle(2, parseInt(Theme.info.replace('#', ''), 16));
+    panelBg.strokeRoundedRect(-200, -100, 400, 200, 12);
+    
+    const messageTitle = this.scene.add.text(0, -50, '👑 Creator Mode', {
+      fontSize: '24px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.info,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    const messageText = this.scene.add.text(0, -10, 'You cannot guess on your own game.\nView the dashboard to see all guesses!', {
+      fontSize: '16px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textPrimary,
+      align: 'center'
+    }).setOrigin(0.5);
+    
+    const okButton = this.scene.add.text(0, 40, 'OK', {
+      fontSize: '18px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.accentCyan,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    okButton.setInteractive();
+    okButton.on('pointerdown', () => {
+      modalBg.destroy();
+      panelBg.destroy();
+      messageTitle.destroy();
+      messageText.destroy();
+      okButton.destroy();
+    });
+    
+    // Create container and position at center
+    const container = this.scene.add.container(width / 2, height / 2, [
+      panelBg, messageTitle, messageText, okButton
+    ]);
+    container.setDepth(26);
+    
+    // Entrance animation
+    container.setAlpha(0);
+    container.setScale(0.8);
+    this.scene.tweens.add({
+      targets: container,
+      alpha: 1,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 300,
+      ease: 'Back.easeOut'
+    });
+  }
+
+  private disableAllInteractions(): void {
+    // Disable all interactive objects
+    this.interactiveObjects.forEach(obj => {
+      obj.disableInteractive();
+      obj.setAlpha(0.5); // Visual indication that they're disabled
+    });
+  }
+
+  private showAlreadyGuessedMessage(): void {
+    const { width, height } = this.scene.scale;
+    
+    // Create modal background
+    const modalBg = this.scene.add.graphics();
+    modalBg.fillStyle(parseInt(Theme.bgModal.replace('#', ''), 16), 0.9);
+    modalBg.fillRect(0, 0, width, height);
+    modalBg.setDepth(25);
+    
+    // Create message panel
+    const panelBg = this.scene.add.graphics();
+    panelBg.fillStyle(parseInt(Theme.bgPanel.replace('#', ''), 16), 0.95);
+    panelBg.fillRoundedRect(-200, -100, 400, 200, 12);
+    panelBg.lineStyle(2, parseInt(Theme.warning.replace('#', ''), 16));
+    panelBg.strokeRoundedRect(-200, -100, 400, 200, 12);
+    
+    const messageTitle = this.scene.add.text(0, -50, '⚠️ Already Guessed', {
+      fontSize: '24px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.warning,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    const messageText = this.scene.add.text(0, -10, 'You have already made a guess\non this game.', {
+      fontSize: '16px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textPrimary,
+      align: 'center'
+    }).setOrigin(0.5);
+    
+    const okButton = this.scene.add.text(0, 40, 'OK', {
+      fontSize: '18px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.accentCyan,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    okButton.setInteractive();
+    okButton.on('pointerdown', () => {
+      modalBg.destroy();
+      panelBg.destroy();
+      messageTitle.destroy();
+      messageText.destroy();
+      okButton.destroy();
+    });
+    
+    // Create container and position at center
+    const container = this.scene.add.container(width / 2, height / 2, [
+      panelBg, messageTitle, messageText, okButton
+    ]);
+    container.setDepth(26);
+    
+    // Entrance animation
+    container.setAlpha(0);
+    container.setScale(0.8);
+    this.scene.tweens.add({
+      targets: container,
+      alpha: 1,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 300,
+      ease: 'Back.easeOut'
     });
   }
 
