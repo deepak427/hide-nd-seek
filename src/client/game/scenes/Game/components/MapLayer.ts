@@ -54,7 +54,7 @@ export class MapLayer {
     this.createInteractiveObjects();
 
     console.log('✅ MapLayer created successfully');
-    
+
     // Debug: Log object positions for verification
     if (process.env.NODE_ENV === 'development') {
       console.log('🎯 Object positions:', this.mapData.objects.map(obj => ({
@@ -101,10 +101,31 @@ export class MapLayer {
 
       // Create interactive object sprite with appropriate scaling
       const objectSprite = this.scene.add.image(x, y, objData.key);
-      
-      // Scale objects appropriately based on map size - larger and more visible
+
+      // Scale objects appropriately based on map size and object type
       const baseScale = Math.min(mapBounds.width / 1200, mapBounds.height / 800);
-      const objectScale = baseScale * 0.3; // Even larger for better visibility
+      let objectScale = baseScale * 0.25; // Base scale for most objects
+
+      // Adjust scale based on object type for realistic sizing
+      switch (objData.key) {
+        case 'guard':
+          objectScale = baseScale * 0.35; // People should be more visible
+          break;
+        case 'car':
+        case 'truck':
+          objectScale = baseScale * 0.4; // Vehicles are larger
+          break;
+        case 'wardrobe':
+          objectScale = baseScale * 0.3; // Furniture is medium-large
+          break;
+        case 'bush':
+        case 'pumpkin':
+          objectScale = baseScale * 0.2; // Smaller natural objects
+          break;
+        default:
+          objectScale = baseScale * 0.25;
+      }
+
       objectSprite.setScale(objectScale);
       objectSprite.setDepth(5);
       objectSprite.setData('objectKey', objData.key);
@@ -247,26 +268,26 @@ export class MapLayer {
   private clearAllSelections() {
     this.interactiveObjects.forEach(obj => {
       obj.setData('isSelected', false);
-      
+
       // Remove any existing selection effects
       const selectionBorder = obj.getData('selectionBorder');
       if (selectionBorder) {
         selectionBorder.destroy();
         obj.setData('selectionBorder', null);
       }
-      
+
       // Remove any hover glow effects
       const hoverGlow = obj.getData('hoverGlow');
       if (hoverGlow) {
         hoverGlow.destroy();
         obj.setData('hoverGlow', null);
       }
-      
+
       // Reset scale and tint to original state
       const originalScale = obj.getData('originalScale');
       obj.setScale(originalScale);
       obj.clearTint();
-      
+
       // Stop any running tweens on this object
       this.scene.tweens.killTweensOf(obj);
     });
@@ -340,7 +361,7 @@ export class MapLayer {
    */
   private showSelectionFeedback(objectSprite: Phaser.GameObjects.Image) {
     const originalScale = objectSprite.getData('originalScale');
-    
+
     // Create persistent selection border/glow
     const selectionBorder = this.scene.add.image(objectSprite.x, objectSprite.y, objectSprite.getData('objectKey'));
     selectionBorder.setScale(originalScale * 1.3);
@@ -348,7 +369,7 @@ export class MapLayer {
     selectionBorder.setAlpha(0.4);
     selectionBorder.setDepth(4);
     selectionBorder.setName('selection-border');
-    
+
     // Store reference for cleanup
     objectSprite.setData('selectionBorder', selectionBorder);
 
@@ -402,6 +423,9 @@ export class MapLayer {
   /**
    * Create fallback map data when server data is unavailable - using only available assets
    * Objects positioned relative to map dimensions for proper scaling
+   * Positioned based on the actual map layout:
+   * - Top half: Outdoor scene (ground/field left, veranda center, road right)
+   * - Bottom half: Indoor hall/mansion interior
    */
   private createFallbackMapData(): VirtualMap {
     return {
@@ -411,14 +435,25 @@ export class MapLayer {
       releaseDate: Date.now(),
       backgroundAsset: this.mapKey,
       objects: [
-        // Objects positioned using relative coordinates (0-1) for proper scaling
-        // Positioned to match specific locations in the map image
-        { key: 'pumpkin', name: 'Pumpkin', x: 0.82, y: 0.75, width: 32, height: 32, interactive: true },
-        { key: 'wardrobe', name: 'Wardrobe', x: 0.15, y: 0.63, width: 64, height: 128, interactive: true },
-        { key: 'bush', name: 'Bush', x: 0.25, y: 0.8, width: 32, height: 32, interactive: true },
-        { key: 'car', name: 'Car', x: 0.44, y: 0.87, width: 64, height: 32, interactive: true },
-        { key: 'truck', name: 'Truck', x: 0.69, y: 0.83, width: 64, height: 32, interactive: true },
-        { key: 'guard', name: 'Guard', x: 0.5, y: 0.58, width: 32, height: 48, interactive: true }
+        // OUTDOOR OBJECTS (Top half of map)
+        // Bush - in the ground/field area (top-left)
+        { key: 'bush', name: 'Bush', x: 0.15, y: 0.25, width: 40, height: 40, interactive: true },
+
+        // Pumpkin - on the veranda/deck area (top-center)
+        { key: 'pumpkin', name: 'Pumpkin', x: 0.5, y: 0.28, width: 35, height: 35, interactive: true },
+
+        // Car - on the road (top-right)
+        { key: 'car', name: 'Car', x: 0.75, y: 0.32, width: 60, height: 30, interactive: true },
+
+        // Truck - on the road, slightly different position than car
+        { key: 'truck', name: 'Truck', x: 0.85, y: 0.25, width: 70, height: 35, interactive: true },
+
+        // INDOOR OBJECTS (Bottom half of map)
+        // Guard - at the door/entrance of the hall (bottom-center)
+        { key: 'guard', name: 'Guard', x: 0.5, y: 0.75, width: 25, height: 45, interactive: true },
+
+        // Wardrobe - in the hall near the side (bottom-left area)
+        { key: 'wardrobe', name: 'Wardrobe', x: 0.2, y: 0.8, width: 45, height: 80, interactive: true }
       ]
     };
   }
@@ -464,27 +499,49 @@ export class MapLayer {
       // Use stored relative coordinates for accurate positioning
       const relativeX = objectSprite.getData('relativeX');
       const relativeY = objectSprite.getData('relativeY');
-      
+
       if (relativeX !== undefined && relativeY !== undefined) {
         // Recalculate position using stored relative coordinates
         const x = mapBounds.x + (relativeX * mapBounds.width);
         const y = mapBounds.y + (relativeY * mapBounds.height);
 
         objectSprite.setPosition(x, y);
-        
-        // Update scale based on new map size
+
+        // Update scale based on new map size and object type
         const baseScale = Math.min(mapBounds.width / 1200, mapBounds.height / 800);
-        const objectScale = baseScale * 0.3; // Keep consistent with creation
+        const objectKey = objectSprite.getData('objectKey');
+        let objectScale = baseScale * 0.25; // Base scale
+
+        // Apply same scaling rules as creation
+        switch (objectKey) {
+          case 'guard':
+            objectScale = baseScale * 0.35;
+            break;
+          case 'car':
+          case 'truck':
+            objectScale = baseScale * 0.4;
+            break;
+          case 'wardrobe':
+            objectScale = baseScale * 0.3;
+            break;
+          case 'bush':
+          case 'pumpkin':
+            objectScale = baseScale * 0.2;
+            break;
+          default:
+            objectScale = baseScale * 0.25;
+        }
+
         objectSprite.setScale(objectScale);
         objectSprite.setData('originalScale', objectScale);
-        
+
         // Reposition selection border if it exists
         const selectionBorder = objectSprite.getData('selectionBorder');
         if (selectionBorder) {
           selectionBorder.setPosition(x, y);
           selectionBorder.setScale(objectScale * 1.3);
         }
-        
+
         // Reposition hover glow if it exists
         const hoverGlow = objectSprite.getData('hoverGlow');
         if (hoverGlow) {

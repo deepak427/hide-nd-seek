@@ -65,7 +65,8 @@ export interface PlayerStatistics {
 // Game session data (Requirements 7.2, 7.3, 7.4)
 export interface GameSession {
   gameId: string;
-  creator: string;
+  creator: string; // User ID for authorization
+  creatorUsername?: string; // Username for display
   mapKey: string;
   hidingSpot: HidingSpot;
   createdAt: number;

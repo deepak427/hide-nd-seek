@@ -4,6 +4,8 @@ import { Game as MainGame } from './scenes/Game/Game';
 import { MainMenu } from './scenes/MainMenu/MainMenu';
 import { MapSelection } from './scenes/MapSelection/MapSelection';
 import { SplashScene } from './scenes/SplashScene';
+import { Dashboard } from './scenes/Dashboard';
+import { GuessScene } from './scenes/GuessScene';
 import * as Phaser from 'phaser';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader/Preloader';
@@ -65,7 +67,7 @@ const config: Phaser.Types.Core.GameConfig = {
     min: 30, // Minimum acceptable FPS
     limit: 60 // Cap FPS to save battery on mobile
   },
-  scene: [Boot, SplashScene, Preloader, MainMenu, MapSelection, MainGame, GameOver],
+  scene: [Boot, SplashScene, Preloader, MainMenu, MapSelection, MainGame, GameOver, Dashboard, GuessScene],
   input: {
     keyboard: true,
     mouse: true,
@@ -75,6 +77,9 @@ const config: Phaser.Types.Core.GameConfig = {
     activePointers: 3,
     smoothFactor: 0.2,
     windowEvents: false
+  },
+  dom: {
+    createContainer: true
   },
   disableContextMenu: true,
   banner: {

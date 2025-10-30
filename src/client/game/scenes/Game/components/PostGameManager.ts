@@ -71,12 +71,12 @@ export class PostGameManager {
   }) {
     try {
       this.isPosting = true;
-      
+
       // Hide the dialog first
       this.hidePostCreationDialog();
-      
+
       console.log('📤 Creating Reddit post for hiding challenge...');
-      
+
       // Prepare post data for Reddit
       const postData: CreatePostRequest = {
         mapKey: gameData.mapKey,
@@ -84,7 +84,7 @@ export class PostGameManager {
         relX: gameData.relX,
         relY: gameData.relY
       };
-      
+
       // Send to server to create Reddit post
       const response = await this.networkService.post<CreatePostResponse>(
         '/api/create-post',
@@ -95,25 +95,11 @@ export class PostGameManager {
           retries: 3
         }
       );
-      
+
       if (response.success) {
         // Requirements 7.2: Show success popup with post URL and gameId
-        this.showPostSuccess(response.postUrl, response.gameId);
-        
-        // Restart the game in dashboard mode for the creator
-        this.scene.time.delayedCall(3000, () => {
-          console.log('🔄 Restarting game in dashboard mode for creator');
-          this.scene.scene.start('Game', {
-            gameId: response.gameId,
-            userRole: 'creator',
-            hidingSpot: {
-              objectKey: gameData.objectKey,
-              relX: gameData.relX,
-              relY: gameData.relY,
-            },
-            mapKey: gameData.mapKey,
-          });
-        });
+        // Stay on the same screen, just show copy game ID option
+        this.showPostSuccess(response.postUrl, response.gameId, gameData);
       } else {
         this.errorHandler.showError({
           title: 'Post Creation Failed',
@@ -123,7 +109,7 @@ export class PostGameManager {
           retryCallback: () => this.confirmPostCreation(gameData)
         });
       }
-      
+
     } catch (error) {
       console.error('Post creation error:', error);
       // Error is already handled by NetworkService
@@ -160,7 +146,7 @@ export class PostGameManager {
     relY: number;
   }): boolean {
     const validationResult = this.performComprehensiveValidation(gameData);
-    
+
     if (!validationResult.isValid) {
       this.showValidationError(validationResult.errors, validationResult.suggestions);
       return false;
@@ -180,7 +166,7 @@ export class PostGameManager {
   }) {
     const errors: string[] = [];
     const suggestions: string[] = [];
-    
+
     // Validate map key
     const validMaps = ['cozy-bedroom', 'modern-kitchen', 'enchanted-forest', 'octmap'];
     if (!gameData.mapKey || gameData.mapKey.trim() === '') {
@@ -209,8 +195,8 @@ export class PostGameManager {
 
     // Validate coordinate precision (avoid extreme edges for better gameplay)
     const edgeMargin = 0.02; // 2% margin from edges - more lenient
-    if (gameData.relX < edgeMargin || gameData.relX > (1 - edgeMargin) || 
-        gameData.relY < edgeMargin || gameData.relY > (1 - edgeMargin)) {
+    if (gameData.relX < edgeMargin || gameData.relX > (1 - edgeMargin) ||
+      gameData.relY < edgeMargin || gameData.relY > (1 - edgeMargin)) {
       errors.push('Object too close to map edges');
       suggestions.push('Place the object further from the edges for better gameplay experience');
     }
@@ -219,7 +205,7 @@ export class PostGameManager {
     const centerX = 0.5;
     const centerY = 0.5;
     const distanceFromCenter = Math.sqrt(Math.pow(gameData.relX - centerX, 2) + Math.pow(gameData.relY - centerY, 2));
-    
+
     if (distanceFromCenter < 0.1) {
       suggestions.push('Consider placing the object in a less obvious location for a better challenge');
     }
@@ -236,7 +222,7 @@ export class PostGameManager {
    */
   private showValidationError(errors: string[], suggestions: string[]) {
     let message = errors.join('\n• ');
-    
+
     if (suggestions.length > 0) {
       message += '\n\n💡 Suggestions:\n• ' + suggestions.join('\n• ');
     }
@@ -250,71 +236,75 @@ export class PostGameManager {
   }
 
   /**
-   * Show post creation success popup
-   * Requirements 7.2: Display post creation confirmation with "Post created! Open on Reddit" message
+   * Show post creation success popup - Simplified version
    */
-  private showPostSuccess(postUrl: string, gameId: string) {
+  private showPostSuccess(postUrl: string, gameId: string, gameData: { mapKey: string; objectKey: string; relX: number; relY: number }) {
     const { width, height } = this.scene.scale;
-    
+
+    // Generate short game ID (first 5 characters)
+    const shortGameId = gameId.substring(0, 5).toUpperCase();
+
     // Success icon with animation
     const successIcon = this.scene.add.text(width / 2, height / 2 - 80, '🎉', {
       fontSize: '64px'
     }).setOrigin(0.5);
-    
-    // Success message - Requirements 7.2: Show "Post created! Open on Reddit" message
-    const successTitle = this.scene.add.text(width / 2, height / 2 - 30, 'Post Created!', {
+
+    // Success message
+    const successTitle = this.scene.add.text(width / 2, height / 2 - 30, 'Challenge Created!', {
       fontSize: '28px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.success,
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);
-    
-    const successSubtitle = this.scene.add.text(width / 2, height / 2 - 5, 'Your hide-and-seek challenge is now live on Reddit!\nRedirecting you to the post...', {
-      fontSize: '18px',
+
+    const successSubtitle = this.scene.add.text(width / 2, height / 2, 'Share this Game ID with others to play:', {
+      fontSize: '16px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       align: 'center'
     }).setOrigin(0.5);
-    
-    // Game ID display
-    const gameIdText = this.scene.add.text(width / 2, height / 2 + 20, `Game ID: ${gameId}`, {
-      fontSize: '14px',
+
+    // Large Game ID display
+    const gameIdText = this.scene.add.text(width / 2, height / 2 + 35, shortGameId, {
+      fontSize: '32px',
       fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.textSecondary,
+      color: Theme.accentCyan,
       align: 'center',
-      fontStyle: 'italic'
+      fontStyle: 'bold',
+      backgroundColor: Theme.bgSecondary,
+      padding: { x: 20, y: 10 }
     }).setOrigin(0.5);
-    
-    // Action buttons - Requirements 7.2: Show link to open on Reddit
-    const openBtn = this.createOpenRedditButton(postUrl);
-    const copyBtn = this.createCopyLinkButton(postUrl);
+
+    // Action buttons
+    const copyIdBtn = this.createCopyGameIdButton(shortGameId);
+    const dashboardBtn = this.createGoDashboardButton();
     const closeBtn = this.createCloseButton();
-    
+
     // Button container
-    const buttonContainer = this.scene.add.container(0, 80, [openBtn, copyBtn, closeBtn]);
-    
+    const buttonContainer = this.scene.add.container(0, 90, [copyIdBtn, dashboardBtn, closeBtn]);
+
     // Background with enhanced styling
     const bg = this.scene.add.graphics();
     bg.fillStyle(parseInt(Theme.bgModal.replace('#', ''), 16), 0.98);
-    bg.fillRoundedRect(-300, -120, 600, 240, Theme.radiusLarge);
+    bg.fillRoundedRect(-250, -110, 500, 220, Theme.radiusLarge);
     bg.lineStyle(4, parseInt(Theme.success.replace('#', ''), 16));
-    bg.strokeRoundedRect(-300, -120, 600, 240, Theme.radiusLarge);
-    
+    bg.strokeRoundedRect(-250, -110, 500, 220, Theme.radiusLarge);
+
     // Add celebration glow effect
     const glow = this.scene.add.graphics();
     glow.fillStyle(parseInt(Theme.success.replace('#', ''), 16), 0.15);
-    glow.fillRoundedRect(-310, -130, 620, 260, Theme.radiusLarge);
-    
+    glow.fillRoundedRect(-260, -120, 520, 240, Theme.radiusLarge);
+
     const container = this.scene.add.container(width / 2, height / 2, [
       glow, bg, successIcon, successTitle, successSubtitle, gameIdText, buttonContainer
     ]);
     container.setDepth(Theme.zIndexModal);
-    
+
     // Celebration entrance animation
     container.setScale(0);
     successIcon.setScale(0);
-    
+
     this.scene.tweens.add({
       targets: container,
       scaleX: 1,
@@ -322,7 +312,7 @@ export class PostGameManager {
       duration: 700,
       ease: 'Back.easeOut'
     });
-    
+
     // Icon celebration animation
     this.scene.tweens.add({
       targets: successIcon,
@@ -341,45 +331,39 @@ export class PostGameManager {
         });
       }
     });
-    
+
     // Store container reference for manual closing
     (this.scene as any).successContainer = container;
-    
-    // Auto hide after 12 seconds (longer for success celebration)
-    this.scene.time.delayedCall(12000, () => {
-      this.hideSuccessPopup();
-    });
-    
-    console.log(`🎉 Game posted successfully: ${postUrl} (Game ID: ${gameId})`);
+
+    console.log(`🎉 Game posted successfully with ID: ${shortGameId}`);
   }
 
   /**
-   * Create "Open on Reddit" button
-   * Requirements 7.2: Provide link to open Reddit post
+   * Create "Copy Game ID" button
    */
-  private createOpenRedditButton(postUrl: string): Phaser.GameObjects.Container {
+  private createCopyGameIdButton(gameId: string): Phaser.GameObjects.Container {
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-100, -20, 200, 40, Theme.radiusMedium);
-    
+    btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+
     // Button text
-    const btnText = this.scene.add.text(0, 0, '🔗 Open on Reddit', {
+    const btnText = this.scene.add.text(0, 0, '📋 Copy ID', {
       fontSize: '16px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    
-    const button = this.scene.add.container(-130, 0, [btnBg, btnText]);
-    button.setSize(200, 40);
+
+    const button = this.scene.add.container(-90, 0, [btnBg, btnText]);
+    button.setSize(160, 40);
     button.setInteractive();
-    
+
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
-      btnBg.fillStyle(parseInt(Theme.primaryDark.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-100, -20, 200, 40, Theme.radiusMedium);
+      btnBg.fillStyle(parseInt(Theme.accentHover.replace('#', ''), 16));
+      btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1.05,
@@ -388,11 +372,11 @@ export class PostGameManager {
         ease: 'Power2.easeOut'
       });
     });
-    
+
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-100, -20, 200, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1,
@@ -401,7 +385,7 @@ export class PostGameManager {
         ease: 'Power2.easeOut'
       });
     });
-    
+
     button.on('pointerdown', () => {
       // Add click feedback
       this.scene.tweens.add({
@@ -412,50 +396,39 @@ export class PostGameManager {
         yoyo: true,
         ease: 'Power2.easeOut',
         onComplete: () => {
-          try {
-            // Redirect to the Reddit post immediately
-            console.log('🔗 Redirecting to Reddit post:', postUrl);
-            window.location.href = postUrl;
-          } catch (error) {
-            console.error('Failed to open Reddit link:', error);
-            this.errorHandler.showError({
-              title: 'Link Error',
-              message: 'Failed to open Reddit. Please copy the link manually.',
-              type: 'error'
-            });
-          }
+          this.copyToClipboard(gameId, btnText);
         }
       });
     });
-    
+
     return button;
   }
 
   /**
-   * Create "Copy Link" button
+   * Create "Go to Dashboard" button
    */
-  private createCopyLinkButton(postUrl: string): Phaser.GameObjects.Container {
+  private createGoDashboardButton(): Phaser.GameObjects.Container {
     // Button background
     const btnBg = this.scene.add.graphics();
-    btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
+    btnBg.fillStyle(parseInt(Theme.success.replace('#', ''), 16));
     btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
-    
+
     // Button text
-    const btnText = this.scene.add.text(0, 0, '📋 Copy Link', {
+    const btnText = this.scene.add.text(0, 0, '📊 Dashboard', {
       fontSize: '16px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    
-    const button = this.scene.add.container(0, 0, [btnBg, btnText]);
+
+    const button = this.scene.add.container(90, 0, [btnBg, btnText]);
     button.setSize(160, 40);
     button.setInteractive();
-    
+
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
-      btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16), 0.3);
+      btnBg.fillStyle(parseInt(Theme.success.replace('#', ''), 16), 0.8);
       btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
@@ -465,10 +438,10 @@ export class PostGameManager {
         ease: 'Power2.easeOut'
       });
     });
-    
+
     button.on('pointerout', () => {
       btnBg.clear();
-      btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
+      btnBg.fillStyle(parseInt(Theme.success.replace('#', ''), 16));
       btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
@@ -478,7 +451,7 @@ export class PostGameManager {
         ease: 'Power2.easeOut'
       });
     });
-    
+
     button.on('pointerdown', () => {
       // Add click feedback
       this.scene.tweens.add({
@@ -489,13 +462,17 @@ export class PostGameManager {
         yoyo: true,
         ease: 'Power2.easeOut',
         onComplete: () => {
-          this.copyToClipboard(postUrl, btnText);
+          // Close the popup and go to dashboard scene
+          this.hideSuccessPopup();
+          this.scene.scene.start('Dashboard');
         }
       });
     });
-    
+
     return button;
   }
+
+
 
   /**
    * Create "Close" button
@@ -505,19 +482,19 @@ export class PostGameManager {
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
     btnBg.fillRoundedRect(-60, -20, 120, 40, Theme.radiusMedium);
-    
+
     // Button text
     const btnText = this.scene.add.text(0, 0, '✕ Close', {
-      fontSize: '16px',
+      fontSize: '15px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    
-    const button = this.scene.add.container(130, 0, [btnBg, btnText]);
+
+    const button = this.scene.add.container(0, 50, [btnBg, btnText]);
     button.setSize(120, 40);
     button.setInteractive();
-    
+
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
@@ -525,18 +502,18 @@ export class PostGameManager {
       btnBg.fillRoundedRect(-60, -20, 120, 40, Theme.radiusMedium);
       btnText.setColor(Theme.error);
     });
-    
+
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
       btnBg.fillRoundedRect(-60, -20, 120, 40, Theme.radiusMedium);
       btnText.setColor(Theme.textSecondary);
     });
-    
+
     button.on('pointerdown', () => {
       this.hideSuccessPopup();
     });
-    
+
     return button;
   }
 
@@ -546,21 +523,21 @@ export class PostGameManager {
   private async copyToClipboard(url: string, buttonText: Phaser.GameObjects.Text) {
     try {
       await navigator.clipboard.writeText(url);
-      
+
       // Show success feedback
       const originalText = buttonText.text;
       buttonText.setText('✅ Copied!');
       buttonText.setColor(Theme.success);
-      
+
       // Reset after 2 seconds
       this.scene.time.delayedCall(2000, () => {
         buttonText.setText(originalText);
         buttonText.setColor(Theme.textPrimary);
       });
-      
+
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
-      
+
       // Fallback: show URL in a prompt
       const fallbackText = `Copy this link: ${url}`;
       if (window.prompt) {
@@ -569,7 +546,7 @@ export class PostGameManager {
         console.log('Reddit post URL:', url);
         buttonText.setText('❌ Failed');
         buttonText.setColor(Theme.error);
-        
+
         this.scene.time.delayedCall(2000, () => {
           buttonText.setText('📋 Copy Link');
           buttonText.setColor(Theme.textPrimary);

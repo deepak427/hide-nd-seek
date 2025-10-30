@@ -29,6 +29,22 @@ import { media } from '@devvit/media';
 import { v4 as uuidv4 } from 'uuid';
 import { loadConfig } from '../shared/config/environment';
 
+// Helper function to resolve game IDs (now we store short IDs directly)
+async function resolveGameId(inputId: string): Promise<string | null> {
+  // If it's a short ID (5 characters), normalize and return
+  if (inputId.length === 5) {
+    return inputId.toUpperCase();
+  }
+  
+  // If it's a full UUID, extract the short ID (first 5 characters)
+  if (inputId.length === 36 && inputId.includes('-')) {
+    return inputId.substring(0, 5).toUpperCase();
+  }
+  
+  // Invalid format
+  return null;
+}
+
 // Initialize configuration system
 const config = loadConfig();
 console.log('Configuration loaded: Basic config loaded');
@@ -110,6 +126,9 @@ router.post('/api/create-post', ErrorHandlingService.asyncHandler(async (req, re
 
   // Generate unique game ID
   const gameId = uuidv4();
+  
+  // Generate short game ID (first 5 characters of UUID, uppercase)
+  const shortGameId = gameId.substring(0, 5).toUpperCase();
 
   // Create Reddit post first
   const postResponse = await RedditIntegrationService.createGamePost({
@@ -122,14 +141,15 @@ router.post('/api/create-post', ErrorHandlingService.asyncHandler(async (req, re
   const postIdMatch = postResponse.postUrl.match(/\/comments\/([a-zA-Z0-9]+)\//);
   const postId = postIdMatch ? postIdMatch[1] : undefined;
 
-  // Create game session using data access layer
+  // Create game session using data access layer with short ID as primary key
   const gameCreated = await dataAccess.createGame(
-    gameId,
-    user.id,
+    shortGameId, // Use short ID as the primary key
+    user.id, // Use user.id for authorization checks
     mapKey,
     { objectKey, relX, relY },
     postId,
-    postResponse.postUrl
+    postResponse.postUrl,
+    user.username // Pass username for display
   );
 
   if (!gameCreated) {
@@ -139,7 +159,7 @@ router.post('/api/create-post', ErrorHandlingService.asyncHandler(async (req, re
   const response: CreatePostResponse = {
     success: true,
     postUrl: postResponse.postUrl,
-    gameId
+    gameId: shortGameId // Return short ID to client
   };
 
   res.json(response);
@@ -194,19 +214,37 @@ router.post('/api/guess', ErrorHandlingService.asyncHandler(async (req, res): Pr
 
   // Validate input using centralized validators
   ErrorHandlingService.validateRequired(req.body, ['gameId', 'objectKey', 'relX', 'relY']);
-  Validators.gameId(gameId);
   Validators.objectKey(objectKey);
   Validators.coordinates(relX, relY);
 
+  // Resolve short game ID to full UUID if needed
+  const resolvedGameId = await resolveGameId(gameId);
+  if (!resolvedGameId) {
+    throw new NotFoundError(`Invalid game ID format: ${gameId}`);
+  }
+
   // Get game session using data access layer
-  const gameSession = await dataAccess.getGame(gameId);
+  const gameSession = await dataAccess.getGame(resolvedGameId);
   if (!gameSession) {
     throw new NotFoundError('Game not found');
   }
 
+  // Prevent creator from guessing their own game
+  if (gameSession.creator === user.id) {
+    throw new AuthorizationError('You cannot guess on your own game');
+  }
+
+  // Check if user has already guessed on this game
+  const existingGuesses = await dataAccess.getGameGuesses(resolvedGameId);
+  const userAlreadyGuessed = existingGuesses.some(guess => guess.userId === user.id);
+  
+  if (userAlreadyGuessed) {
+    throw new AuthorizationError('You have already guessed on this game');
+  }
+
   // Record the guess using data access layer
   const guessData = await dataAccess.recordGuess(
-    gameId,
+    resolvedGameId,
     user.id,
     user.username,
     objectKey,
@@ -219,10 +257,8 @@ router.post('/api/guess', ErrorHandlingService.asyncHandler(async (req, res): Pr
   let message = '';
   if (guessData.isCorrect) {
     message = `Correct! You found the ${gameSession.hidingSpot.objectKey}!`;
-  } else if (objectKey === gameSession.hidingSpot.objectKey) {
-    message = `Right object, but not quite the right spot. Distance: ${Math.round(guessData.distance * 100)}%`;
   } else {
-    message = `Not quite! The hidden object is a ${gameSession.hidingSpot.objectKey}.`;
+    message = `Wrong! The hidden object was a ${gameSession.hidingSpot.objectKey}.`;
   }
 
   // Get updated player stats for rank progression info
@@ -247,7 +283,6 @@ router.post('/api/guess', ErrorHandlingService.asyncHandler(async (req, res): Pr
     success: true,
     isCorrect: guessData.isCorrect,
     message,
-    distance: Math.round(guessData.distance * 100),
     ...(rankProgression && { rankProgression })
   };
 
@@ -258,11 +293,18 @@ router.post('/api/guess', ErrorHandlingService.asyncHandler(async (req, res): Pr
 router.get('/api/game/:gameId', ErrorHandlingService.asyncHandler(async (req, res): Promise<void> => {
   const { gameId } = req.params;
   
-  // Validate gameId
-  Validators.gameId(gameId);
+  if (!gameId) {
+    throw new NotFoundError('Game ID is required');
+  }
+  
+  // Resolve short game ID to full UUID if needed
+  const resolvedGameId = await resolveGameId(gameId);
+  if (!resolvedGameId) {
+    throw new NotFoundError(`Invalid game ID format: ${gameId}`);
+  }
   
   // Get game session using data access layer
-  const gameSession = await dataAccess.getGame(gameId);
+  const gameSession = await dataAccess.getGame(resolvedGameId);
   
   if (!gameSession) {
     throw new NotFoundError(`Game not found: ${gameId}`);
@@ -292,22 +334,28 @@ router.get('/api/guesses', ErrorHandlingService.asyncHandler(async (req, res): P
     throw new NotFoundError('gameId query parameter is required');
   }
 
-  Validators.gameId(gameId);
+  // Resolve short game ID to full UUID if needed
+  const resolvedGameId = await resolveGameId(gameId);
+  if (!resolvedGameId) {
+    throw new NotFoundError(`Invalid game ID format: ${gameId}`);
+  }
 
   // Check authorization using Reddit auth service
-  const authorized = await redditAuth.checkAuthorization(user.id, 'view_guesses', gameId);
+  const authorized = await redditAuth.checkAuthorization(user.id, 'view_guesses', resolvedGameId);
   if (!authorized) {
     throw new AuthorizationError('Only the game creator can view guesses');
   }
 
   // Get guesses and statistics using data access layer
-  const guesses = await dataAccess.getGameGuesses(gameId);
-  const stats = await dataAccess.getGuessStatistics(gameId);
+  const guesses = await dataAccess.getGameGuesses(resolvedGameId);
+  const stats = await dataAccess.getGuessStatistics(resolvedGameId);
 
   const response: GetGuessesResponse = {
     guesses,
     totalGuesses: stats.totalGuesses,
-    correctGuesses: stats.correctGuesses
+    correctGuesses: stats.correctGuesses,
+    uniqueGuessers: stats.uniqueGuessers,
+    averageDistance: stats.averageDistance
   };
 
   res.json(response);
@@ -553,9 +601,21 @@ router.head('/api/ping', (_req, res) => {
 router.get('/game/:gameId', ErrorHandlingService.asyncHandler(async (req, res): Promise<void> => {
   const { gameId } = req.params;
   
+  if (!gameId) {
+    res.redirect('/');
+    return;
+  }
+  
   try {
+    // Resolve short game ID to full UUID if needed
+    const resolvedGameId = await resolveGameId(gameId);
+    if (!resolvedGameId) {
+      res.redirect('/');
+      return;
+    }
+    
     // Get game data
-    const gameSession = await dataAccess.getGame(gameId);
+    const gameSession = await dataAccess.getGame(resolvedGameId);
     
     if (!gameSession) {
       // Redirect to main game if game not found
@@ -580,14 +640,13 @@ router.get('/game/:gameId', ErrorHandlingService.asyncHandler(async (req, res): 
       objectKey: gameSession.hidingSpot.objectKey,
       mode: mode,
       userRole: userRole,
-      // Include hiding spot for creator (for dashboard view)
-      ...(userRole === 'creator' && { 
-        hidingSpot: {
-          objectKey: gameSession.hidingSpot.objectKey,
-          relX: gameSession.hidingSpot.relX,
-          relY: gameSession.hidingSpot.relY
-        }
-      })
+      // Always include hiding spot - needed for both guessing validation and dashboard
+      // The client-side GuessMode component needs this to validate guesses
+      hidingSpot: {
+        objectKey: gameSession.hidingSpot.objectKey,
+        relX: gameSession.hidingSpot.relX,
+        relY: gameSession.hidingSpot.relY
+      }
     };
     
     // Replace the empty postData script with actual data

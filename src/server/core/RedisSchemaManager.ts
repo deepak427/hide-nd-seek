@@ -377,10 +377,12 @@ export class RedisSchemaManager {
       throw new Error('Invalid gameId: must be a non-empty string');
     }
 
-    // UUID v4 pattern validation
+    // Accept both short IDs (5 characters) and full UUIDs
+    const shortIdPattern = /^[A-Z0-9]{5}$/i; // 5 character alphanumeric
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidPattern.test(gameId)) {
-      throw new Error('Invalid gameId: must be a valid UUID v4');
+    
+    if (!shortIdPattern.test(gameId) && !uuidPattern.test(gameId)) {
+      throw new Error('Invalid gameId: must be either a 5-character short ID or a valid UUID v4');
     }
   }
 

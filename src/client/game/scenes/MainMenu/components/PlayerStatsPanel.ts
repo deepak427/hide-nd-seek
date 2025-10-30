@@ -1,121 +1,231 @@
 import { Scene } from 'phaser';
 import { Theme } from '../../../../style/theme';
-import type { PlayerProfile } from '../../../../../shared/types/game';
+import { NetworkService } from '../../../services/NetworkService';
+import { GetPlayerStatsResponse } from '../../../../../shared/types/api';
 
+/**
+ * Player stats panel for main menu
+ */
 export class PlayerStatsPanel {
-  public container: Phaser.GameObjects.Container;
-  private background: Phaser.GameObjects.Graphics;
-  private statsContainer: Phaser.GameObjects.Container;
+  private scene: Scene;
+  private networkService: NetworkService;
+  private container: Phaser.GameObjects.Container | null = null;
+  private statsData: GetPlayerStatsResponse | null = null;
 
-  constructor(
-    private scene: Scene,
-    x: number,
-    y: number,
-    private playerProfile: PlayerProfile
-  ) {
-    this.container = this.scene.add.container(x, y);
-    this.createStatsPanel();
+  constructor(scene: Scene) {
+    this.scene = scene;
+    this.networkService = new NetworkService(scene);
   }
 
-  private createStatsPanel() {
-    // Create background panel
-    this.background = this.scene.add.graphics();
-    this.background.fillStyle(parseInt(Theme.secondaryDark.replace('#', ''), 16), 0.8);
-    this.background.lineStyle(2, parseInt(Theme.accentCyan.replace('#', ''), 16), 0.3);
-    this.background.fillRoundedRect(-150, -40, 300, 80, 8);
-    this.background.strokeRoundedRect(-150, -40, 300, 80, 8);
+  async create(x: number, y: number): Promise<void> {
+    try {
+      // Load player stats
+      this.statsData = await this.networkService.get('/api/player/stats', {
+        showLoading: false,
+        retries: 1
+      }) as GetPlayerStatsResponse;
 
-    // Create stats container
-    this.statsContainer = this.scene.add.container(0, 0);
-    
-    this.createStatItems();
-
-    // Add to main container
-    this.container.add([this.background, this.statsContainer]);
+      this.createStatsPanel(x, y);
+    } catch (error) {
+      this.createErrorPanel(x, y);
+    }
   }
 
-  private createStatItems() {
-    const stats = [
-      {
-        label: 'Total Guesses',
-        value: this.playerProfile.totalGuesses.toString(),
-        x: -100
-      },
-      {
-        label: 'Successful',
-        value: this.playerProfile.successfulGuesses.toString(),
-        x: 0
-      },
-      {
-        label: 'Success Rate',
-        value: `${Math.round(this.playerProfile.successRate * 100)}%`,
-        x: 100
-      }
-    ];
+  private createStatsPanel(x: number, y: number): void {
+    if (!this.statsData) return;
 
-    stats.forEach((stat, index) => {
-      // Stat value (large number)
-      const valueText = this.scene.add.text(stat.x, -15, stat.value, {
-        fontSize: '24px',
-        fontFamily: 'Inter, Arial, sans-serif',
-        color: Theme.accentCyan,
-        fontStyle: 'bold'
-      }).setOrigin(0.5);
+    const elements: Phaser.GameObjects.GameObject[] = [];
+    const { profile, progression } = this.statsData;
 
-      // Stat label (small text)
-      const labelText = this.scene.add.text(stat.x, 5, stat.label, {
+    // Background panel
+    const panelBg = this.scene.add.graphics();
+    panelBg.fillStyle(parseInt(Theme.bgPanel.replace('#', ''), 16), 0.9);
+    panelBg.fillRoundedRect(-150, -80, 300, 160, 12);
+    panelBg.lineStyle(2, parseInt(Theme.borderLight.replace('#', ''), 16), 0.5);
+    panelBg.strokeRoundedRect(-150, -80, 300, 160, 12);
+    elements.push(panelBg);
+
+    // Title
+    const title = this.scene.add.text(0, -65, 'Your Stats', {
+      fontSize: '18px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textPrimary,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    elements.push(title);
+
+    // Rank display
+    const rankIcon = this.scene.add.text(-120, -35, '🏆', {
+      fontSize: '24px'
+    });
+    elements.push(rankIcon);
+
+    const rankName = this.scene.add.text(-90, -35, progression.currentRank, {
+      fontSize: '16px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.accentCyan,
+      fontStyle: 'bold'
+    }).setOrigin(0, 0.5);
+    elements.push(rankName);
+
+    // Rank progress bar
+    if (progression.nextRank) {
+      const progressBg = this.scene.add.graphics();
+      progressBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
+      progressBg.fillRoundedRect(-120, -10, 240, 8, 4);
+      elements.push(progressBg);
+
+      const progressFill = this.scene.add.graphics();
+      const progressWidth = (240 * progression.progressToNext) / 100;
+      progressFill.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
+      progressFill.fillRoundedRect(-120, -10, progressWidth, 8, 4);
+      elements.push(progressFill);
+
+      const progressText = this.scene.add.text(0, 5, `${Math.round(progression.progressToNext)}% to ${progression.nextRank}`, {
         fontSize: '12px',
         fontFamily: 'Inter, Arial, sans-serif',
         color: Theme.textSecondary
       }).setOrigin(0.5);
+      elements.push(progressText);
+    } else {
+      const maxRankText = this.scene.add.text(0, -5, 'MAX RANK ACHIEVED!', {
+        fontSize: '14px',
+        fontFamily: 'Inter, Arial, sans-serif',
+        color: Theme.success,
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+      elements.push(maxRankText);
+    }
 
-      // Add separator lines (except for last item)
-      if (index < stats.length - 1) {
-        const separator = this.scene.add.graphics();
-        separator.lineStyle(1, parseInt(Theme.border.replace('rgba(238, 238, 238, 0.2)', '0xEEEEEE'), 16), 0.2);
-        separator.moveTo(stat.x + 50, -30);
-        separator.lineTo(stat.x + 50, 30);
-        separator.strokePath();
-        this.statsContainer.add(separator);
-      }
+    // Stats grid
+    const statsY = 25;
 
-      this.statsContainer.add([valueText, labelText]);
-    });
-
-    // Add player name at the top
-    const playerNameText = this.scene.add.text(0, -35, `Welcome back, ${this.playerProfile.username}!`, {
+    // Games Played
+    const gamesPlayedLabel = this.scene.add.text(-100, statsY, 'Games', {
+      fontSize: '12px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary
+    }).setOrigin(0.5);
+    const gamesPlayedValue = this.scene.add.text(-100, statsY + 15, profile.totalGuesses.toString(), {
       fontSize: '16px',
       fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.lightGray,
+      color: Theme.accentCyan,
       fontStyle: 'bold'
     }).setOrigin(0.5);
+    elements.push(gamesPlayedLabel, gamesPlayedValue);
 
-    this.statsContainer.add(playerNameText);
-
-    // Add join date at the bottom
-    const joinDate = new Date(this.playerProfile.joinedAt);
-    const joinDateText = this.scene.add.text(0, 25, `Playing since ${joinDate.toLocaleDateString()}`, {
-      fontSize: '10px',
+    // Games Won
+    const gamesWonLabel = this.scene.add.text(0, statsY, 'Won', {
+      fontSize: '12px',
       fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.textMuted
+      color: Theme.textSecondary
     }).setOrigin(0.5);
+    const gamesWonValue = this.scene.add.text(0, statsY + 15, profile.successfulGuesses.toString(), {
+      fontSize: '16px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.success,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    elements.push(gamesWonLabel, gamesWonValue);
 
-    this.statsContainer.add(joinDateText);
+    // Win Rate
+    const winRateLabel = this.scene.add.text(100, statsY, 'Win Rate', {
+      fontSize: '12px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary
+    }).setOrigin(0.5);
+    const winRateValue = this.scene.add.text(100, statsY + 15, `${Math.round(profile.successRate)}%`, {
+      fontSize: '16px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.warning,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    elements.push(winRateLabel, winRateValue);
+
+    // Rank Points (smaller text at bottom)
+    const rankPointsText = this.scene.add.text(0, 65, `${profile.totalGuesses} Total Guesses`, {
+      fontSize: '11px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary
+    }).setOrigin(0.5);
+    elements.push(rankPointsText);
+
+    // Create container
+    this.container = this.scene.add.container(x, y, elements);
+    this.container.setDepth(Theme.zIndexUI);
+
+    // Entrance animation
+    this.container.setAlpha(0);
+    this.container.setScale(0.9);
+    this.scene.tweens.add({
+      targets: this.container,
+      alpha: 1,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 400,
+      ease: 'Back.easeOut'
+    });
   }
 
-  public setPosition(x: number, y: number) {
-    this.container.setPosition(x, y);
+  private createErrorPanel(x: number, y: number): void {
+    const elements: Phaser.GameObjects.GameObject[] = [];
+
+    // Background panel
+    const panelBg = this.scene.add.graphics();
+    panelBg.fillStyle(parseInt(Theme.bgPanel.replace('#', ''), 16), 0.9);
+    panelBg.fillRoundedRect(-150, -40, 300, 80, 12);
+    panelBg.lineStyle(2, parseInt(Theme.borderLight.replace('#', ''), 16), 0.5);
+    panelBg.strokeRoundedRect(-150, -40, 300, 80, 12);
+    elements.push(panelBg);
+
+    // Error message
+    const errorText = this.scene.add.text(0, -10, 'Stats Unavailable', {
+      fontSize: '16px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary
+    }).setOrigin(0.5);
+    elements.push(errorText);
+
+    const subText = this.scene.add.text(0, 10, 'Play a game to see your stats!', {
+      fontSize: '12px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary
+    }).setOrigin(0.5);
+    elements.push(subText);
+
+    // Create container
+    this.container = this.scene.add.container(x, y, elements);
+    this.container.setDepth(Theme.zIndexUI);
+
+    // Entrance animation
+    this.container.setAlpha(0);
+    this.scene.tweens.add({
+      targets: this.container,
+      alpha: 1,
+      duration: 300
+    });
   }
 
-  public updateStats(newProfile: PlayerProfile) {
-    this.playerProfile = newProfile;
+  async refresh(): Promise<void> {
+    const x = this.container?.x || 0;
+    const y = this.container?.y || 0;
     
-    // Clear existing stats and recreate
-    this.statsContainer.removeAll(true);
-    this.createStatItems();
+    if (this.container) {
+      this.container.destroy();
+      this.container = null;
+    }
+    
+    await this.create(x, y);
   }
 
-  public destroy() {
-    this.container.destroy();
+  destroy(): void {
+    if (this.container) {
+      this.container.destroy();
+      this.container = null;
+    }
+  }
+
+  getContainer(): Phaser.GameObjects.Container | null {
+    return this.container;
   }
 }

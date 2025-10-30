@@ -27,7 +27,7 @@ export class Game extends Scene {
   private selectedObject: string | null = null;
   private gameId: string | null = null;
 
-  
+
   // Environment detection and embedded game support
   private environmentDetector: EnvironmentDetector;
   private embeddedGameManager: EmbeddedGameManager;
@@ -35,7 +35,7 @@ export class Game extends Scene {
   private environmentDetection: EnvironmentDetection | null = null;
   private embeddedConfig: EmbeddedGameConfig | null = null;
   private isEmbeddedMode: boolean = false;
-  
+
   // Performance optimization components
   private performanceManager: PerformanceManager;
   private assetOptimizer: AssetOptimizer;
@@ -61,18 +61,18 @@ export class Game extends Scene {
       environment: data.environment,
       embeddedConfig: data.embeddedConfig
     });
-    
+
     // Ensure required data is present
     if (!data.mapKey) {
       data.mapKey = 'octmap'; // Default fallback map
     }
-    
+
     // Detect environment first
     this.environmentDetection = data.environment || this.environmentDetector.detect();
     this.isEmbeddedMode = this.environmentDetection.mode === 'embedded';
-    
+
     console.log(`🌍 Environment: ${this.environmentDetection.mode}`);
-    
+
     // Initialize based on environment
     if (this.isEmbeddedMode) {
       this.initEmbeddedMode(data);
@@ -83,7 +83,7 @@ export class Game extends Scene {
 
   preload() {
     console.log('📦 Starting simplified asset loading...');
-    
+
     // Initialize performance optimization components first
     // Requirements: 6.4 - Optimize performance for mobile devices
     this.performanceManager = new PerformanceManager(this, {
@@ -92,7 +92,7 @@ export class Game extends Scene {
       enableAutoOptimization: true,
       enablePerformanceMonitoring: true
     });
-    
+
     this.assetOptimizer = new AssetOptimizer(this, {
       enableTextureCompression: false, // Disable to avoid issues
       maxTextureSize: 1024,
@@ -111,9 +111,9 @@ export class Game extends Scene {
 
     // Create fallback textures for missing assets
     this.createFallbackTextures();
-    
+
     console.log('✅ Fallback textures created');
-    
+
     // Create a simple 1x1 pixel image to ensure the loader has something to load
     // This ensures Phaser's preload -> create lifecycle works properly
     const canvas = document.createElement('canvas');
@@ -122,16 +122,16 @@ export class Game extends Scene {
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, 1, 1);
-    
+
     // Load this dummy asset to trigger the loader
     this.load.image('dummy', canvas.toDataURL());
-    
+
     // Handle completion
     this.load.on('complete', () => {
       console.log('📦 Preload complete, calling onAssetsLoaded');
       this.onAssetsLoaded();
     });
-    
+
     console.log('🚀 Starting Phaser loader...');
   }
 
@@ -141,7 +141,7 @@ export class Game extends Scene {
    */
   private setupAssetOptimization(): void {
     const optimizationLevel = this.performanceManager.getOptimizationLevel();
-    
+
     // Adjust asset optimizer settings based on performance level
     switch (optimizationLevel.level) {
       case 'potato':
@@ -161,7 +161,7 @@ export class Game extends Scene {
         this.assetOptimizer.setCompressionQuality(0.9);
         break;
     }
-    
+
     console.log(`🎮 Asset optimization configured for ${optimizationLevel.level} quality`);
   }
 
@@ -170,7 +170,7 @@ export class Game extends Scene {
    */
   private createFallbackTextures(): void {
     const fallbackAssets = ['octmap', 'cozy-bedroom', 'pumpkin', 'wardrobe', 'bush', 'car', 'truck', 'guard'];
-    
+
     fallbackAssets.forEach(key => {
       if (!this.textures.exists(key)) {
         this.createFallbackTexture(key);
@@ -185,9 +185,9 @@ export class Game extends Scene {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 64;
-    
+
     const ctx = canvas.getContext('2d')!;
-    
+
     // Different colors for different asset types
     const colors = {
       'octmap': '#2c3e50',
@@ -199,19 +199,19 @@ export class Game extends Scene {
       'truck': '#9b59b6',
       'guard': '#e74c3c'
     };
-    
+
     ctx.fillStyle = colors[key as keyof typeof colors] || '#95a5a6';
     ctx.fillRect(0, 0, 64, 64);
-    
+
     // Add simple shape indicator
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(key.charAt(0).toUpperCase(), 32, 36);
-    
+
     const fallbackImage = new Image();
     fallbackImage.src = canvas.toDataURL();
-    
+
     this.textures.addImage(key, fallbackImage);
     console.log(`🔄 Created fallback texture for: ${key}`);
   }
@@ -222,15 +222,15 @@ export class Game extends Scene {
   private loadAvailableAssets(): void {
     // Load essential assets only - don't try to load assets that don't exist
     console.log('📦 Loading essential assets...');
-    
+
     // Only load if we actually need these assets and they exist
     // For now, skip loading external assets and rely on fallback textures
-    
+
     // Mark fallback textures as loaded
     this.assetOptimizer.addCriticalAsset('octmap');
     this.assetOptimizer.addCriticalAsset('pumpkin');
     this.assetOptimizer.addCriticalAsset('wardrobe');
-    
+
     console.log('✅ Using fallback textures for all assets');
   }
 
@@ -241,30 +241,30 @@ export class Game extends Scene {
   private async onAssetsLoaded(): Promise<void> {
     try {
       console.log('✅ Assets loaded, proceeding to create scene');
-      
+
       // Show optimization report in development
       if (process.env.NODE_ENV === 'development') {
         console.log(this.assetOptimizer.getOptimizationReport());
         console.log(this.performanceManager.getPerformanceReport());
       }
-      
+
       this.uxService.hideLoading();
-      
+
       // Show optimization level to user
       const optimizationLevel = this.performanceManager.getOptimizationLevel();
       this.uxService.showToast(`Game optimized for ${optimizationLevel.description}`, {
         type: 'info',
         duration: 2000
       });
-      
+
       // Force scene creation immediately since Phaser's create() might not be called
       console.log('🚀 Assets loaded, forcing scene creation immediately');
-      
+
       this.time.delayedCall(100, () => {
         console.log('🔧 Forcing scene creation now');
         this.createStandaloneMode();
       });
-      
+
     } catch (error) {
       console.error('Asset optimization failed:', error);
       this.uxService.hideLoading();
@@ -277,15 +277,15 @@ export class Game extends Scene {
 
   async create() {
     console.log('🏗️ Phaser create() method called');
-    
+
     // Only prevent if scene is already fully created
     if (this.bg && this.mapLayer && this.ui) {
       console.log('⚠️ Scene already fully created, skipping...');
       return;
     }
-    
+
     console.log('🔧 Proceeding with scene creation from create() method');
-    
+
     try {
       if (this.isEmbeddedMode) {
         await this.createEmbeddedMode();
@@ -304,19 +304,23 @@ export class Game extends Scene {
    */
   private initStandaloneMode(data: GameInitData) {
     console.log('🖥️ Initializing standalone mode');
-    this.gameId = data.gameId ?? null;
+    console.log('🖥️ Data received:', data);
     
+    // Store gameId from data
+    this.gameId = data.gameId ?? null;
+    console.log('�️ UGameId stored:', this.gameId);
+
     // Always use octmap for now since we have fallback textures for it
-    const mapKey = 'octmap';
+    const mapKey = data.mapKey || 'octmap';
     console.log(`🗺️ Using map: ${mapKey}`);
     this.mapLayer = new MapLayer(this, mapKey);
     this.shareManager = new ShareManager(this);
     this.postGameManager = new PostGameManager(this);
-    
+
     // Mode detection and setup (Requirements 8.4, 8.5)
     this.gameMode = this.detectGameMode(data);
     console.log(`🎮 Game mode detected: ${this.gameMode}`);
-    
+
     // Initialize mode-specific data
     this.initializeModeSpecificData(data);
   }
@@ -327,38 +331,38 @@ export class Game extends Scene {
    */
   private detectGameMode(data: GameInitData): 'hiding' | 'guessing' | 'dashboard' {
     console.log(`🚀 GAME: detectGameMode called with data:`, data);
-    
+
     // Check if mode is explicitly provided (from URL detection or server injection)
     if (data.mode) {
       console.log(`🚀 GAME: Explicit mode provided: ${data.mode}`);
       return data.mode;
     }
-    
+
     // Check userRole to determine mode (new logic for server-injected data)
     if (data.userRole) {
       const mode = data.userRole === 'creator' ? 'dashboard' : 'guessing';
       console.log(`🚀 GAME: UserRole detected: ${data.userRole} - switching to ${mode} mode`);
       return mode;
     }
-    
+
     // If we have embedded config with hiding spot, we're in guessing mode
     if (data.embeddedConfig?.hidingSpot) {
       console.log(`🚀 GAME: Embedded config with hiding spot detected - guessing mode`);
       return 'guessing';
     }
-    
+
     // If we have a gameId, we're in guessing mode (Reddit post)
     if (data.gameId) {
       console.log(`🚀 GAME: GameId detected: ${data.gameId} - switching to guessing mode`);
       return 'guessing';
     }
-    
+
     // If we have a gameId but no hiding spot, we might be the creator viewing dashboard
     if (data.embeddedConfig?.gameId && !data.embeddedConfig?.hidingSpot) {
       console.log(`🚀 GAME: Embedded config with gameId but no hiding spot - dashboard mode`);
       return 'dashboard';
     }
-    
+
     // Default to hiding mode for standalone
     console.log(`🚀 GAME: No special conditions met - defaulting to hiding mode`);
     return 'hiding';
@@ -392,7 +396,7 @@ export class Game extends Scene {
           console.log('🎯 Hiding spot data loaded for guessing:', hidingSpotData);
         }
         break;
-        
+
       case 'dashboard':
         console.log('👑 Initializing dashboard mode - creator viewing guesses');
         // Store hiding spot data for dashboard display
@@ -416,7 +420,7 @@ export class Game extends Scene {
    */
   private initEmbeddedMode(data: GameInitData) {
     console.log('📱 Initializing embedded mode');
-    
+
     // In embedded mode, we'll get the config from the embedded game manager
     // For now, set up basic properties that will be updated after initialization
     this.embeddedConfig = data.embeddedConfig || null;
@@ -429,7 +433,7 @@ export class Game extends Scene {
    */
   private async createStandaloneMode() {
     console.log('🖥️ Creating standalone mode scene');
-    
+
     try {
       // Ensure components are initialized with correct mapKey
       console.log('🔧 Reinitializing mapLayer with octmap...');
@@ -440,7 +444,7 @@ export class Game extends Scene {
         console.error('❌ Failed to initialize MapLayer:', error);
         throw error;
       }
-      
+
       if (!this.shareManager) {
         console.log('🔧 Initializing shareManager...');
         try {
@@ -451,7 +455,7 @@ export class Game extends Scene {
           // Don't throw, this is not critical
         }
       }
-      
+
       if (!this.postGameManager) {
         console.log('🔧 Initializing postGameManager...');
         try {
@@ -462,31 +466,31 @@ export class Game extends Scene {
           // Don't throw, this is not critical
         }
       }
-      
+
       // Set default game mode
       if (!this.gameMode) {
         this.gameMode = 'hiding';
         console.log('🎮 Set default game mode: hiding');
       }
-      
+
       console.log('1️⃣ Creating background...');
       this.createBackground();
-      
+
       console.log('2️⃣ Creating map layer...');
       await this.createMapLayer();
-      
+
       console.log('3️⃣ Creating UI...');
       this.createUI();
-      
+
       console.log('4️⃣ Setting up game logic...');
       this.setupGameLogic();
       this.setupResize();
-      
+
       console.log('5️⃣ Starting game intro...');
       this.startGameIntro();
-      
+
       console.log('✅ Standalone mode scene created successfully');
-      
+
     } catch (error) {
       console.error('❌ Error in createStandaloneMode:', error);
       console.log('🔧 Creating minimal fallback scene...');
@@ -499,7 +503,7 @@ export class Game extends Scene {
    */
   private async createEmbeddedMode() {
     console.log('📱 Creating embedded mode scene');
-    
+
     try {
       // Show loading for initialization
       this.uxService.showLoading({
@@ -509,10 +513,10 @@ export class Game extends Scene {
 
       // Initialize embedded game manager
       this.embeddedConfig = await this.embeddedGameManager.initialize();
-      
+
       // Set up game properties based on embedded config
       this.gameMode = this.embeddedGameManager.isCreator() ? 'dashboard' : 'guessing';
-      
+
       // Create map layer with config from server
       this.mapLayer = new MapLayer(this, this.embeddedConfig.mapKey);
       this.shareManager = new ShareManager(this);
@@ -535,7 +539,7 @@ export class Game extends Scene {
       });
 
       this.createBackground();
-      
+
       this.uxService.showProgress({
         current: 2,
         total: 4,
@@ -543,7 +547,7 @@ export class Game extends Scene {
       });
 
       this.createMapLayer();
-      
+
       this.uxService.showProgress({
         current: 3,
         total: 4,
@@ -551,7 +555,7 @@ export class Game extends Scene {
       });
 
       this.createEmbeddedUI();
-      
+
       this.uxService.showProgress({
         current: 4,
         total: 4,
@@ -566,7 +570,7 @@ export class Game extends Scene {
         this.uxService.hideProgress();
         this.startEmbeddedGameIntro();
       }, 500);
-      
+
     } catch (error) {
       console.error('❌ Failed to initialize embedded mode:', error);
       this.uxService.hideLoading();
@@ -579,7 +583,7 @@ export class Game extends Scene {
    */
   private createEmbeddedUI() {
     this.ui = new UIManager(this);
-    
+
     if (this.embeddedGameManager.isCreator()) {
       // Creator sees dashboard interface
       this.ui.create(
@@ -595,7 +599,7 @@ export class Game extends Scene {
         'guessing'
       );
     }
-    
+
     // Setup embedded-specific UI
     this.embeddedGameManager.setupUserInterface(this);
   }
@@ -617,20 +621,33 @@ export class Game extends Scene {
    * Setup creator dashboard
    */
   private setupCreatorDashboard() {
+    console.log('👑 Setting up creator dashboard');
+    console.log('👑 Current gameId:', this.gameId);
+    console.log('👑 Selected hiding spot:', this.selectedHidingSpot);
+    console.log('👑 Selected object:', this.selectedObject);
+    
     this.gameMode = 'dashboard';
 
     // Creator can see all guesses and statistics
     // The map shows where the object is hidden
-    if (this.selectedHidingSpot) {
+    if (this.selectedHidingSpot && this.selectedObject) {
       this.showCreatorHidingSpot();
+    } else {
+      console.warn('👑 No hiding spot data available for creator view');
     }
 
     // Create and load dashboard
     if (this.gameId) {
+      console.log('👑 Creating dashboard with gameId:', this.gameId);
       this.guessDashboard = new GuessDashboard(this, this.gameId);
       this.guessDashboard.loadGuesses();
     } else {
-      console.error('No gameId available for dashboard mode');
+      console.error('👑 No gameId available for dashboard mode - cannot load guesses');
+      // Show error to user
+      this.uxService.showToast('Unable to load dashboard: No game ID found', {
+        type: 'error',
+        duration: 5000
+      });
     }
   }
 
@@ -668,7 +685,7 @@ export class Game extends Scene {
   private async startEmbeddedGameIntro() {
     // Smooth fade in effect
     this.cameras.main.fadeIn(800, 0, 0, 0);
-    
+
     // Show welcome toast
     if (this.embeddedGameManager.isCreator()) {
       this.uxService.showToast('Welcome back! Here are your challenge results.', {
@@ -726,14 +743,14 @@ export class Game extends Scene {
    */
   private createMinimalScene() {
     console.log('🔧 Creating minimal fallback scene');
-    
+
     const { width, height } = this.scale;
-    
+
     // Create simple background
     const bg = this.add.graphics();
     bg.fillStyle(parseInt(Theme.primaryDark.replace('#', ''), 16));
     bg.fillRect(0, 0, width, height);
-    
+
     // Add title
     const title = this.add.text(width / 2, height / 2 - 100, '🎮 Hide & Seek', {
       fontSize: '48px',
@@ -741,7 +758,7 @@ export class Game extends Scene {
       color: Theme.accentCyan,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    
+
     // Add status
     const status = this.add.text(width / 2, height / 2, 'Game loaded successfully!\nMinimal mode active.', {
       fontSize: '24px',
@@ -749,7 +766,7 @@ export class Game extends Scene {
       color: Theme.textPrimary,
       align: 'center'
     }).setOrigin(0.5);
-    
+
     // Add instructions
     const instructions = this.add.text(width / 2, height / 2 + 100, 'Click anywhere to continue', {
       fontSize: '18px',
@@ -757,14 +774,14 @@ export class Game extends Scene {
       color: Theme.textSecondary,
       align: 'center'
     }).setOrigin(0.5);
-    
+
     // Make it interactive
     this.input.once('pointerdown', () => {
       console.log('🖱️ User clicked, attempting full scene creation...');
       this.children.removeAll();
       this.createStandaloneMode();
     });
-    
+
     // Add pulsing animation to instructions
     this.tweens.add({
       targets: instructions,
@@ -773,7 +790,7 @@ export class Game extends Scene {
       yoyo: true,
       repeat: -1
     });
-    
+
     console.log('✅ Minimal scene created');
   }
 
@@ -789,13 +806,13 @@ export class Game extends Scene {
     if (!this.mapLayer) {
       throw new Error('MapLayer not initialized');
     }
-    
+
     await this.mapLayer.create();
     console.log('✅ MapLayer created successfully');
-    
+
     // Listen for object selection events from MapLayer (Requirements 1.2, 1.4, 1.5)
     this.events.on('objectSelected', this.onObjectSelected, this);
-    
+
     if (this.gameMode === 'hiding') {
       // In hiding mode, objects are interactive for selection
       console.log('🫥 Hiding mode: Interactive objects ready for selection');
@@ -819,7 +836,7 @@ export class Game extends Scene {
     positionData?: any;
   }) {
     console.log(`🎯 Object selected:`, selectionData);
-    
+
     // Validate position data (Requirements 1.4, 1.5)
     if (!this.validateSelectionData(selectionData)) {
       this.uxService.showToast('Invalid selection. Please try again.', {
@@ -828,12 +845,12 @@ export class Game extends Scene {
       });
       return;
     }
-    
+
     // Clear previous selection if different object
     if (this.selectedObject && this.selectedObject !== selectionData.objectKey) {
       console.log(`🔄 Switching selection from ${this.selectedObject} to ${selectionData.objectKey}`);
     }
-    
+
     // Store selection data with position tracking
     this.selectedObject = selectionData.objectKey;
     this.selectedHidingSpot = {
@@ -847,7 +864,7 @@ export class Game extends Scene {
     console.log(`📍 Position tracked: Object=${selectionData.objectKey}, RelPos=(${selectionData.relX.toFixed(3)}, ${selectionData.relY.toFixed(3)}), WorldPos=(${selectionData.worldX.toFixed(1)}, ${selectionData.worldY.toFixed(1)})`);
 
     // Show success feedback with position info (Requirements 1.5)
-    this.uxService.showToast(`Great hiding spot! You're hiding behind the ${selectionData.objectName}. Now post your challenge for others to find you!`, {
+    this.uxService.showToast(`Great hiding spot! You're hiding behind the ${selectionData.objectName}. Now create your challenge!`, {
       type: 'success',
       duration: 4000
     });
@@ -859,7 +876,7 @@ export class Game extends Scene {
 
     // Update objective with position feedback
     if (this.ui) {
-      this.ui.showObjective(`You're hiding behind the ${selectionData.objectName}! Ready to post your hide-and-seek challenge.`);
+      this.ui.showObjective(`You're hiding behind the ${selectionData.objectName}! Ready to create your hide-and-seek challenge.`);
     }
 
     // Show position tracking statistics in debug mode
@@ -878,8 +895,8 @@ export class Game extends Scene {
     }
 
     // Validate relative coordinates (Requirements 1.4)
-    if (selectionData.relX < 0 || selectionData.relX > 1 || 
-        selectionData.relY < 0 || selectionData.relY > 1) {
+    if (selectionData.relX < 0 || selectionData.relX > 1 ||
+      selectionData.relY < 0 || selectionData.relY > 1) {
       console.error('Invalid relative coordinates:', selectionData.relX, selectionData.relY);
       return false;
     }
@@ -906,7 +923,7 @@ export class Game extends Scene {
     // Show stats in development mode
     if (process.env.NODE_ENV === 'development') {
       const statsText = `Tracked: ${stats.totalTracked}, Valid: ${stats.validPositions}, Avg: (${stats.averageRelX.toFixed(2)}, ${stats.averageRelY.toFixed(2)})`;
-      
+
       // Create temporary stats display
       const { width } = this.scale;
       const statsDisplay = this.add.text(width - 10, 10, statsText, {
@@ -935,7 +952,7 @@ export class Game extends Scene {
       () => this.handlePrimaryAction(),
       this.gameMode
     );
-    
+
     // Mode-specific UI setup (Requirements 8.4, 8.5)
     this.setupModeSpecificUI();
   }
@@ -951,7 +968,7 @@ export class Game extends Scene {
         // Objects are directly on the map - no separate selector needed
         this.ui.showObjective('Choose where to hide! Click on any object on the map to hide behind it.');
         break;
-        
+
       case 'guessing':
         console.log('🔍 Setting up guessing mode UI');
         // Get object to find from initialization data
@@ -959,7 +976,7 @@ export class Game extends Scene {
         const objectToFind = initData?.objectKey || this.selectedObject || 'hidden object';
         this.ui.showObjective(`Find the hidden ${objectToFind}! Click on objects to make your guess.`);
         break;
-        
+
       case 'dashboard':
         console.log('👑 Setting up dashboard mode UI');
         // Show dashboard-specific UI
@@ -979,12 +996,12 @@ export class Game extends Scene {
       case 'hiding':
         this.shareGame();
         break;
-        
+
       case 'guessing':
         // In guessing mode, primary action might be to view results or hints
         this.showGuessingHelp();
         break;
-        
+
       case 'dashboard':
         this.refreshDashboard();
         break;
@@ -1008,18 +1025,18 @@ export class Game extends Scene {
    */
   public switchGameMode(newMode: 'hiding' | 'guessing' | 'dashboard', data?: any) {
     console.log(`🔄 Switching from ${this.gameMode} to ${newMode}`);
-    
+
     // Clean up current mode
     this.cleanupCurrentMode();
-    
+
     // Set new mode
     this.gameMode = newMode;
-    
+
     // Initialize new mode
     this.initializeModeSpecificData(data || {});
     this.setupGameLogic();
     this.setupModeSpecificUI();
-    
+
     // Show transition feedback
     this.uxService.showToast(`Switched to ${newMode} mode`, {
       type: 'info',
@@ -1036,13 +1053,13 @@ export class Game extends Scene {
       this.guessMode.destroy();
       this.guessMode = null;
     }
-    
+
     // Clean up dashboard
     if (this.guessDashboard) {
       this.guessDashboard.destroy();
       this.guessDashboard = null;
     }
-    
+
     // Re-enable map object interactions
     this.enableMapObjectInteractions();
   }
@@ -1074,12 +1091,12 @@ export class Game extends Scene {
     if (this.isEmbeddedMode) {
       return false;
     }
-    
+
     // Don't allow switching if game is in progress
     if (this.gameMode === 'guessing' && this.guessMode) {
       return false;
     }
-    
+
     return true;
   }
 
@@ -1092,11 +1109,11 @@ export class Game extends Scene {
       case 'hiding':
         this.setupHidingMode();
         break;
-        
+
       case 'guessing':
         this.setupGuessingMode();
         break;
-        
+
       case 'dashboard':
         this.setupCreatorDashboard();
         break;
@@ -1109,11 +1126,11 @@ export class Game extends Scene {
    */
   private setupHidingMode() {
     console.log('🫥 Setting up hiding mode logic');
-    
+
     // In hiding mode, objects on the map are interactive for selection
     // The MapLayer handles object interactions and emits selection events
     // No additional setup needed - objects are already interactive on the map
-    
+
     console.log('✅ Hiding mode ready - click any object on the map to hide behind it');
   }
 
@@ -1124,13 +1141,13 @@ export class Game extends Scene {
   private async startGameIntro() {
     // Smooth fade in effect
     this.cameras.main.fadeIn(800, 0, 0, 0);
-    
+
     // Show welcome animation
     await this.uxService.createTransition({
       type: 'scale',
       duration: 1000
     });
-    
+
     // Show objective based on mode
     if (this.gameMode === 'hiding') {
       this.uxService.showToast('Welcome to Hide & Seek! Choose an object to hide behind, then challenge others to find you!', {
@@ -1138,7 +1155,7 @@ export class Game extends Scene {
         duration: 4000
       });
       this.ui.showObjective('Choose where to hide! Click on any object to hide behind it.');
-      
+
       // Skip automatic tutorial popup for now to avoid issues
       // Players can access help through the UI if needed
       console.log('ℹ️ Tutorial popup disabled - players can access help through UI');
@@ -1146,7 +1163,7 @@ export class Game extends Scene {
       // Get object to find from initialization data
       const initData = (this.game as any).gameInitData;
       const objectToFind = initData?.objectKey || 'hidden object';
-      
+
       this.uxService.showToast(`Challenge: Find the hidden ${objectToFind}!`, {
         type: 'info',
         duration: 4000
@@ -1164,7 +1181,7 @@ export class Game extends Scene {
     this.time.delayedCall(1000, () => {
       this.addUIAnimations();
     });
-    
+
     // Setup performance display in development mode
     this.setupPerformanceDisplay();
   }
@@ -1174,7 +1191,7 @@ export class Game extends Scene {
   private selectObject(objectKey: string) {
     this.selectedObject = objectKey;
     console.log(`🎯 Selected object: ${objectKey}`);
-    
+
     // Show selection feedback with toast
     this.uxService.showToast(`You're hiding behind the ${objectKey}! Click 'Share Challenge' to post it.`, {
       type: 'info',
@@ -1196,8 +1213,8 @@ export class Game extends Scene {
 
     // Create preview sprite
     const preview = this.add.image(
-      this.selectedHidingSpot.x, 
-      this.selectedHidingSpot.y, 
+      this.selectedHidingSpot.x,
+      this.selectedHidingSpot.y,
       this.selectedObject
     );
     preview.setName('hidingPreview');
@@ -1207,8 +1224,8 @@ export class Game extends Scene {
 
     // Add glow effect
     const glow = this.add.image(
-      this.selectedHidingSpot.x, 
-      this.selectedHidingSpot.y, 
+      this.selectedHidingSpot.x,
+      this.selectedHidingSpot.y,
       this.selectedObject
     );
     glow.setName('hidingGlow');
@@ -1235,46 +1252,47 @@ export class Game extends Scene {
    */
   private async setupGuessingMode() {
     console.log('🔍 Setting up guessing mode logic');
-    
+
     // Get gameId from initialization data
     const initData = (this.game as any).gameInitData;
     const gameId = initData?.gameId;
-    
+
     if (gameId) {
       console.log(`🎯 Fetching game data for gameId: ${gameId}`);
       try {
         // Fetch game data from server
         const gameData = await this.fetchGameData(gameId);
-        
+
         if (gameData && gameData.hidingSpot) {
           console.log('✅ Game data fetched successfully:', gameData);
-          
+
           // Create guess mode component with server data
-          this.guessMode = new GuessMode(this, gameId, gameData.hidingSpot);
-          
+          const userRole = gameData.userRole || 'guesser';
+          this.guessMode = new GuessMode(this, gameId, gameData.hidingSpot, userRole);
+
           // Setup interactive objects for guessing
           const mapBounds = this.mapLayer.getMap().getBounds();
           this.guessMode.setupInteractiveObjects(mapBounds);
-          
+
           // Disable map layer object interactions (GuessMode handles its own objects)
           this.disableMapObjectInteractions();
-          
+
           // Update UI with game info
           if (this.ui) {
             this.ui.showObjective(`Find the hidden ${gameData.hidingSpot.objectKey}!`);
           }
-          
+
           return;
         }
       } catch (error) {
         console.error('❌ Failed to fetch game data:', error);
       }
     }
-    
+
     // Fallback to embedded config or local data
     let hidingSpotData;
     let fallbackGameId;
-    
+
     if (this.embeddedConfig?.hidingSpot) {
       // Embedded mode - data from server
       hidingSpotData = this.embeddedConfig.hidingSpot;
@@ -1294,12 +1312,13 @@ export class Game extends Scene {
     }
 
     // Create guess mode component with fallback data
-    this.guessMode = new GuessMode(this, fallbackGameId, hidingSpotData);
-    
+    // In fallback mode, assume guesser role
+    this.guessMode = new GuessMode(this, fallbackGameId, hidingSpotData, 'guesser');
+
     // Setup interactive objects for guessing
     const mapBounds = this.mapLayer.getMap().getBounds();
     this.guessMode.setupInteractiveObjects(mapBounds);
-    
+
     // Disable map layer object interactions (GuessMode handles its own objects)
     this.disableMapObjectInteractions();
   }
@@ -1342,7 +1361,7 @@ export class Game extends Scene {
       type: 'error',
       duration: 5000
     });
-    
+
     // Fallback to hiding mode
     this.gameMode = 'hiding';
     this.setupHidingMode();
@@ -1364,7 +1383,7 @@ export class Game extends Scene {
         this.ui.showMessage('Please select an object and place it first!', Theme.warning);
         return;
       }
-      
+
       // Requirements 7.1: Use PostGameManager instead of ShareManager for posting
       const gameData = {
         mapKey: this.mapLayer.getMapKey(),
@@ -1372,7 +1391,7 @@ export class Game extends Scene {
         relX: this.selectedHidingSpot.relX,
         relY: this.selectedHidingSpot.relY
       };
-      
+
       console.log('📮 Showing post game dialog with data:', gameData);
       this.postGameManager.showPostGameDialog(gameData);
     } else {
@@ -1486,20 +1505,20 @@ export class Game extends Scene {
    */
   private handleInitializationError(error: any) {
     console.error('Game initialization failed:', error);
-    
+
     this.uxService.hideLoading();
     this.uxService.hideProgress();
 
     // Show user-friendly error message
     const { width, height } = this.scale;
-    
+
     const errorContainer = this.add.container(width / 2, height / 2);
-    
+
     // Error icon
     const errorIcon = this.add.text(0, -40, '⚠️', {
       fontSize: '48px'
     }).setOrigin(0.5);
-    
+
     // Error message
     const errorText = this.add.text(0, 0, 'Failed to load game', {
       fontSize: '24px',
@@ -1508,7 +1527,7 @@ export class Game extends Scene {
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);
-    
+
     const errorSubtext = this.add.text(0, 30, 'Please refresh the page and try again', {
       fontSize: '16px',
       fontFamily: 'Inter, Arial, sans-serif',
@@ -1537,7 +1556,7 @@ export class Game extends Scene {
         ease: 'Power2.easeOut'
       });
     });
-    
+
     retryButton.on('pointerout', () => {
       retryButton.clearTint();
       this.tweens.add({
@@ -1571,20 +1590,20 @@ export class Game extends Scene {
    */
   private handleEmbeddedInitializationError(error: any) {
     console.error('Embedded game initialization failed:', error);
-    
+
     this.uxService.hideLoading();
     this.uxService.hideProgress();
 
     // Show Reddit-specific error message
     const { width, height } = this.scale;
-    
+
     const errorContainer = this.add.container(width / 2, height / 2);
-    
+
     // Error icon
     const errorIcon = this.add.text(0, -40, '🔗', {
       fontSize: '48px'
     }).setOrigin(0.5);
-    
+
     // Error message
     const errorText = this.add.text(0, 0, 'Failed to load Reddit game', {
       fontSize: '20px',
@@ -1593,7 +1612,7 @@ export class Game extends Scene {
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);
-    
+
     const errorSubtext = this.add.text(0, 25, 'Try refreshing the Reddit post', {
       fontSize: '14px',
       fontFamily: 'Inter, Arial, sans-serif',
@@ -1625,17 +1644,17 @@ export class Game extends Scene {
     // Lazy load performance display
     import('../../utils/PerformanceDisplay').then(({ PerformanceDisplay }) => {
       this.performanceDisplay = new PerformanceDisplay(this, this.performanceManager);
-      
+
       // Add keyboard shortcut to toggle performance display (F1 key)
       this.input.keyboard?.on('keydown-F1', () => {
         this.performanceDisplay?.toggle();
       });
-      
+
       // Add keyboard shortcut for manual optimization (F2 key)
       this.input.keyboard?.on('keydown-F2', () => {
         this.performanceManager.optimize('manual');
       });
-      
+
       console.log('🔧 Performance display available (F1 to toggle, F2 to optimize)');
     }).catch(error => {
       console.warn('Failed to load performance display:', error);
@@ -1645,28 +1664,28 @@ export class Game extends Scene {
   shutdown() {
     // Clean up UX service
     this.uxService.destroy();
-    
+
     // Clean up performance optimization components
     // Requirements: 6.4 - Cleanup performance optimization
     this.performanceManager.destroy();
     this.assetOptimizer.destroy();
-    
+
     // Clean up performance display
     if (this.performanceDisplay) {
       this.performanceDisplay.destroy();
     }
-    
+
     // Clean up post game manager
     if (this.postGameManager) {
       this.postGameManager.destroy();
     }
-    
+
     // Clean up embedded game components
     if (this.guessMode) {
       this.guessMode.destroy();
       this.guessMode = null;
     }
-    
+
     if (this.guessDashboard) {
       this.guessDashboard.destroy();
       this.guessDashboard = null;
