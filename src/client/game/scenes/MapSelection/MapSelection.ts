@@ -16,6 +16,7 @@ export class MapSelection extends Scene {
   
   private currentMonthlyMap: VirtualMap | null = null;
   private isLoading = false;
+  private resizeTimeout?: NodeJS.Timeout;
 
   constructor() {
     super('MapSelection');
@@ -53,48 +54,56 @@ export class MapSelection extends Scene {
 
   private createHeader() {
     const { width, height } = this.scale;
+    const isMobile = width < 768;
     
-    // Title
-    this.title = this.add.text(width / 2, height * 0.08, 'MONTHLY MAP', {
-      fontSize: '42px',
+    // Title with responsive sizing - changed to "SELECT MAP"
+    this.title = this.add.text(width / 2, height * 0.08, 'SELECT MAP', {
+      fontSize: isMobile ? '28px' : '42px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.lightGray,
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    // Add glow effect to title
-    this.title.setShadow(0, 0, Theme.accentCyan, 8);
+    // Add glow effect to title (safely)
+    try {
+      this.title.setShadow(0, 0, Theme.accentCyan, isMobile ? 5 : 8);
+    } catch (error) {
+      console.warn('Failed to set title shadow:', error);
+    }
     
-    // Subtitle
-    this.subtitle = this.add.text(width / 2, height * 0.12, 'Discover this month\'s featured map', {
-      fontSize: '18px',
+    // Subtitle with responsive sizing - removed hard-coded text
+    this.subtitle = this.add.text(width / 2, height * 0.12, 'Choose your hiding spot', {
+      fontSize: isMobile ? '14px' : '18px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
-      align: 'center'
+      align: 'center',
+      wordWrap: { width: width * 0.8 }
     }).setOrigin(0.5);
     
-    // Back button
+    // Back button and close button
     this.createBackButton();
+    this.createCloseButton();
   }
 
   private createLoadingState() {
     const { width, height } = this.scale;
+    const isMobile = width < 768;
     
-    // Loading text
-    this.loadingText = this.add.text(width / 2, height / 2, 'Loading monthly map...', {
-      fontSize: '24px',
+    // Loading text with responsive sizing - removed hard-coded "October"
+    this.loadingText = this.add.text(width / 2, height / 2, 'Loading maps...', {
+      fontSize: isMobile ? '18px' : '24px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       align: 'center'
     }).setOrigin(0.5);
     
-    // Error text (initially hidden)
+    // Error text (initially hidden) with responsive sizing
     this.errorText = this.add.text(width / 2, height / 2 + 50, '', {
-      fontSize: '18px',
+      fontSize: isMobile ? '14px' : '18px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.error,
       align: 'center',
-      wordWrap: { width: width - 100 }
+      wordWrap: { width: width * 0.8 }
     }).setOrigin(0.5).setVisible(false);
     
     // Loading animation
@@ -110,32 +119,42 @@ export class MapSelection extends Scene {
 
   private createBackButton() {
     const { width, height } = this.scale;
+    const isMobile = width < 768;
+    
+    // Responsive button sizing
+    const buttonWidth = isMobile ? 80 : 100;
+    const buttonHeight = isMobile ? 35 : 40;
+    const fontSize = isMobile ? '14px' : '16px';
     
     // Back button background
     const backBg = this.add.graphics();
     backBg.fillStyle(parseInt(Theme.secondaryDark.replace('#', ''), 16));
-    backBg.fillRoundedRect(-50, -20, 100, 40, Theme.radiusMedium);
+    backBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
     backBg.lineStyle(2, parseInt(Theme.border.replace('rgba(238, 238, 238, 0.2)', '0xEEEEEE'), 16), 0.2);
-    backBg.strokeRoundedRect(-50, -20, 100, 40, Theme.radiusMedium);
+    backBg.strokeRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
     
     // Back button text
     const backText = this.add.text(0, 0, '← BACK', {
-      fontSize: '16px',
+      fontSize: fontSize,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.lightGray,
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    // Container
-    this.backButton = this.add.container(width * 0.08, height * 0.05, [backBg, backText]);
-    this.backButton.setSize(100, 40);
+    // Container with safe positioning
+    const buttonX = Math.max(buttonWidth/2 + 10, width * 0.08);
+    const buttonY = Math.max(buttonHeight/2 + 10, height * 0.05);
+    
+    this.backButton = this.add.container(buttonX, buttonY, [backBg, backText]);
+    this.backButton.setSize(buttonWidth, buttonHeight);
     this.backButton.setInteractive();
     
     // Hover effects
     this.backButton.on('pointerover', () => {
+      this.input.setDefaultCursor('pointer');
       backBg.clear();
       backBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-      backBg.fillRoundedRect(-50, -20, 100, 40, Theme.radiusMedium);
+      backBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       
       this.tweens.add({
         targets: this.backButton,
@@ -147,11 +166,12 @@ export class MapSelection extends Scene {
     });
     
     this.backButton.on('pointerout', () => {
+      this.input.setDefaultCursor('default');
       backBg.clear();
       backBg.fillStyle(parseInt(Theme.secondaryDark.replace('#', ''), 16));
-      backBg.fillRoundedRect(-50, -20, 100, 40, Theme.radiusMedium);
+      backBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       backBg.lineStyle(2, parseInt(Theme.border.replace('rgba(238, 238, 238, 0.2)', '0xEEEEEE'), 16), 0.2);
-      backBg.strokeRoundedRect(-50, -20, 100, 40, Theme.radiusMedium);
+      backBg.strokeRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       
       this.tweens.add({
         targets: this.backButton,
@@ -163,6 +183,70 @@ export class MapSelection extends Scene {
     });
     
     this.backButton.on('pointerdown', () => {
+      this.goBack();
+    });
+  }
+
+  private createCloseButton() {
+    const { width, height } = this.scale;
+    const isMobile = width < 768;
+    
+    // Close button (X) in top-right corner
+    const closeSize = isMobile ? 35 : 40;
+    
+    // Close button background
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16));
+    closeBg.fillCircle(0, 0, closeSize / 2);
+    
+    // Close button text
+    const closeText = this.add.text(0, 0, '✕', {
+      fontSize: isMobile ? '18px' : '20px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.lightGray,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    // Position in top-right corner
+    const buttonX = width - closeSize / 2 - 20;
+    const buttonY = closeSize / 2 + 20;
+    
+    const closeButton = this.add.container(buttonX, buttonY, [closeBg, closeText]);
+    closeButton.setSize(closeSize, closeSize);
+    closeButton.setInteractive();
+    
+    // Hover effects
+    closeButton.on('pointerover', () => {
+      this.input.setDefaultCursor('pointer');
+      closeBg.clear();
+      closeBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16), 0.8);
+      closeBg.fillCircle(0, 0, closeSize / 2);
+      
+      this.tweens.add({
+        targets: closeButton,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 150,
+        ease: 'Power2'
+      });
+    });
+    
+    closeButton.on('pointerout', () => {
+      this.input.setDefaultCursor('default');
+      closeBg.clear();
+      closeBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16));
+      closeBg.fillCircle(0, 0, closeSize / 2);
+      
+      this.tweens.add({
+        targets: closeButton,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+    });
+    
+    closeButton.on('pointerdown', () => {
       this.goBack();
     });
   }
@@ -201,19 +285,22 @@ export class MapSelection extends Scene {
   }
 
   private createFallbackMap() {
-    // Create a fallback map for demo purposes
+    // Create Octmap fallback
     this.currentMonthlyMap = {
-      key: 'demo-bedroom',
-      name: 'Cozy Bedroom',
+      key: 'octmap',
+      name: 'Octmap',
       theme: 'indoor',
       releaseDate: Date.now(),
-      backgroundAsset: 'bedroom-bg',
+      backgroundAsset: 'octmap',
       objects: [
         { key: 'pumpkin', name: 'Pumpkin', x: 100, y: 200, width: 32, height: 32, interactive: true },
         { key: 'wardrobe', name: 'Wardrobe', x: 300, y: 150, width: 64, height: 128, interactive: true },
-        { key: 'bed', name: 'Bed', x: 500, y: 300, width: 128, height: 64, interactive: true }
+        { key: 'bush', name: 'Bush', x: 500, y: 300, width: 32, height: 32, interactive: true },
+        { key: 'car', name: 'Car', x: 200, y: 100, width: 64, height: 32, interactive: true },
+        { key: 'truck', name: 'Truck', x: 400, y: 250, width: 64, height: 32, interactive: true },
+        { key: 'guard', name: 'Guard', x: 350, y: 180, width: 32, height: 64, interactive: true }
       ],
-      difficulty: 'easy'
+      difficulty: 'medium'
     };
     
     this.hideLoadingState();
@@ -253,52 +340,41 @@ export class MapSelection extends Scene {
     if (!this.currentMonthlyMap) return;
     
     const { width, height } = this.scale;
+    const isMobile = width < 768;
+    
+    // Responsive panel sizing
+    const panelWidth = Math.min(400, width * 0.9);
+    const panelHeight = isMobile ? 70 : 60;
     
     // Create info panel background
     const infoBg = this.add.graphics();
     infoBg.fillStyle(parseInt(Theme.secondaryDark.replace('#', ''), 16), 0.9);
-    infoBg.fillRoundedRect(-200, -40, 400, 80, Theme.radiusLarge);
+    infoBg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
     infoBg.lineStyle(2, parseInt(Theme.accentCyan.replace('#', ''), 16), 0.5);
-    infoBg.strokeRoundedRect(-200, -40, 400, 80, Theme.radiusLarge);
+    infoBg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
     
-    // Map theme and release info
-    const releaseDate = new Date(this.currentMonthlyMap.releaseDate);
-    const monthName = releaseDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    
-    const themeText = this.add.text(0, -15, `Theme: ${this.currentMonthlyMap.theme.toUpperCase()}`, {
-      fontSize: '16px',
+    // Map info with responsive sizing - removed hard-coded theme and dates
+    const mapNameText = this.add.text(0, -10, this.currentMonthlyMap.name, {
+      fontSize: isMobile ? '16px' : '18px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.accentCyan,
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);
     
-    const releaseText = this.add.text(0, 10, `Released: ${monthName}`, {
-      fontSize: '14px',
+    const objectCountText = this.add.text(0, 10, `${this.currentMonthlyMap.objects.filter(obj => obj.interactive).length} objects to find`, {
+      fontSize: isMobile ? '12px' : '14px',
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       align: 'center'
     }).setOrigin(0.5);
     
-    // Next rotation info
-    const nextRotation = this.getNextRotationDate();
-    const nextRotationText = this.add.text(0, 30, `Next map: ${nextRotation}`, {
-      fontSize: '12px',
-      fontFamily: 'Inter, Arial, sans-serif',
-      color: Theme.textMuted,
-      align: 'center'
-    }).setOrigin(0.5);
-    
     this.monthlyMapInfo = this.add.container(width / 2, height * 0.25, [
-      infoBg, themeText, releaseText, nextRotationText
+      infoBg, mapNameText, objectCountText
     ]);
   }
 
-  private getNextRotationDate(): string {
-    const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return nextMonth.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-  }
+
 
   private showLoadingState() {
     this.loadingText.setVisible(true);
@@ -354,7 +430,14 @@ export class MapSelection extends Scene {
 
   private setupResize() {
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
-      this.handleResize(gameSize.width, gameSize.height);
+      // Debounce resize calls to prevent rapid updates
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+      }
+      
+      this.resizeTimeout = setTimeout(() => {
+        this.handleResize(gameSize.width, gameSize.height);
+      }, 100);
     });
   }
 
@@ -370,20 +453,75 @@ export class MapSelection extends Scene {
     );
     this.background.fillRect(0, 0, width, height);
     
-    // Update header positions
-    this.title.setPosition(width / 2, height * 0.08);
-    this.subtitle.setPosition(width / 2, height * 0.12);
+    const isMobile = width < 768;
     
-    // Update back button position
-    this.backButton.setPosition(width * 0.08, height * 0.05);
+    // Recreate title to avoid setShadow issues
+    if (this.title) {
+      this.title.destroy();
+    }
+    this.title = this.add.text(width / 2, height * 0.08, 'SELECT MAP', {
+      fontSize: isMobile ? '28px' : '42px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.lightGray,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
     
-    // Update loading/error text positions
-    this.loadingText.setPosition(width / 2, height / 2);
-    this.errorText.setPosition(width / 2, height / 2 + 50);
+    // Safely add shadow to new title
+    try {
+      this.title.setShadow(0, 0, Theme.accentCyan, isMobile ? 5 : 8);
+    } catch (error) {
+      console.warn('Failed to set title shadow during resize:', error);
+    }
+    
+    // Recreate subtitle to avoid font size issues
+    if (this.subtitle) {
+      this.subtitle.destroy();
+    }
+    this.subtitle = this.add.text(width / 2, height * 0.12, 'Choose your hiding spot', {
+      fontSize: isMobile ? '14px' : '18px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary,
+      align: 'center',
+      wordWrap: { width: width * 0.8 }
+    }).setOrigin(0.5);
+    
+    // Update back button position with safe bounds
+    const buttonWidth = isMobile ? 80 : 100;
+    const buttonHeight = isMobile ? 35 : 40;
+    const buttonX = Math.max(buttonWidth/2 + 10, width * 0.08);
+    const buttonY = Math.max(buttonHeight/2 + 10, height * 0.05);
+    this.backButton.setPosition(buttonX, buttonY);
+    
+    // Recreate loading text to avoid font size issues
+    const wasLoadingVisible = this.loadingText.visible;
+    if (this.loadingText) {
+      this.loadingText.destroy();
+    }
+    this.loadingText = this.add.text(width / 2, height / 2, 'Loading maps...', {
+      fontSize: isMobile ? '18px' : '24px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textSecondary,
+      align: 'center'
+    }).setOrigin(0.5).setVisible(wasLoadingVisible);
+    
+    // Recreate error text to avoid font size issues
+    const wasErrorVisible = this.errorText.visible;
+    const errorMessage = this.errorText.text;
+    if (this.errorText) {
+      this.errorText.destroy();
+    }
+    this.errorText = this.add.text(width / 2, height / 2 + 50, errorMessage, {
+      fontSize: isMobile ? '14px' : '18px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.error,
+      align: 'center',
+      wordWrap: { width: width * 0.8 }
+    }).setOrigin(0.5).setVisible(wasErrorVisible);
     
     // Update monthly map info position
     if (this.monthlyMapInfo) {
-      this.monthlyMapInfo.setPosition(width / 2, height * 0.25);
+      this.monthlyMapInfo.destroy();
+      this.createMonthlyMapInfo();
     }
     
     // Recreate map cards with new layout
@@ -407,5 +545,17 @@ export class MapSelection extends Scene {
     
     // Use slide transition back to main menu
     SceneTransition.getInstance().slideToScene(this, 'MainMenu', 'right', undefined, 500);
+  }
+
+  destroy() {
+    // Clean up resize listener
+    this.scale.off('resize');
+    
+    // Clean up map cards
+    this.mapCards.forEach(card => card.destroy());
+    this.mapCards = [];
+    
+    // Clean up tweens
+    this.tweens.killAll();
   }
 }

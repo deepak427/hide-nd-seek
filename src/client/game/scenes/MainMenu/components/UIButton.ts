@@ -43,6 +43,10 @@ export class UIButton {
     };
 
     this.container = this.scene.add.container(x, y);
+
+    // Set initial container size
+    this.container.setSize(this.options.width, this.options.height);
+
     this.createButton(label);
     this.setupInteractions();
   }
@@ -99,38 +103,86 @@ export class UIButton {
   }
 
   private setupInteractions() {
-    this.container.setInteractive(
-      new Phaser.Geom.Rectangle(
-        -this.options.width / 2,
-        -this.options.height / 2,
-        this.options.width,
-        this.options.height
-      ),
-      Phaser.Geom.Rectangle.Contains
+    // Remove any existing interactive setup to prevent duplicates
+    this.container.removeInteractive();
+
+    // Set up interactive area with proper bounds
+    const hitArea = new Phaser.Geom.Rectangle(
+      -this.options.width / 2,
+      -this.options.height / 2,
+      this.options.width,
+      this.options.height
     );
 
-    // Hover effects
+    this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
+
+    // Remove all existing listeners to prevent duplicates
+    this.container.removeAllListeners();
+
+    // Debug logging
+    console.log(`🔘 Setting up button interactions: ${this.text.text}, size: ${this.options.width}x${this.options.height}`);
+
+    // Enable cursor pointer on hover
     this.container.on('pointerover', () => {
+      console.log(`🔘 Button hover: ${this.text.text}`);
       if (!this.isPressed) {
+        this.scene.input.setDefaultCursor('pointer');
         this.onHover();
       }
     });
 
     this.container.on('pointerout', () => {
+      console.log(`🔘 Button hover out: ${this.text.text}`);
       if (!this.isPressed) {
+        this.scene.input.setDefaultCursor('default');
         this.onHoverOut();
       }
     });
 
-    // Click effects
-    this.container.on('pointerdown', () => {
+    // Click effects - use pointerdown for immediate feedback
+    this.container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      console.log(`🔘 Button pressed: ${this.text.text}`);
       this.onPress();
+      // Prevent event bubbling
+      if (pointer.event) {
+        pointer.event.stopPropagation();
+      }
     });
 
-    this.container.on('pointerup', () => {
+    // Handle both pointerup and pointerupoutside for better mobile support
+    this.container.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      console.log(`🔘 Button clicked: ${this.text.text}`);
       this.onRelease();
       if (this.clickCallback) {
         this.clickCallback();
+      }
+      if (pointer.event) {
+        pointer.event.stopPropagation();
+      }
+    });
+
+    this.container.on('pointerupoutside', () => {
+      console.log(`🔘 Button released outside: ${this.text.text}`);
+      this.onRelease();
+    });
+
+    // Enhanced mobile touch support
+    this.container.on('touchstart', (pointer: Phaser.Input.Pointer) => {
+      console.log(`🔘 Button touch start: ${this.text.text}`);
+      this.onPress();
+      if (pointer.event) {
+        pointer.event.preventDefault();
+      }
+    });
+
+    this.container.on('touchend', (pointer: Phaser.Input.Pointer) => {
+      console.log(`🔘 Button touch end: ${this.text.text}`);
+      this.onRelease();
+      if (this.clickCallback) {
+        this.clickCallback();
+      }
+      if (pointer.event) {
+        pointer.event.preventDefault();
       }
     });
   }
@@ -138,7 +190,7 @@ export class UIButton {
   private onHover() {
     this.isHovered = true;
     this.updateBackground(this.options.hoverColor);
-    
+
     // Scale animation
     this.scene.tweens.add({
       targets: this.container,
@@ -160,7 +212,7 @@ export class UIButton {
   private onHoverOut() {
     this.isHovered = false;
     this.updateBackground(this.options.backgroundColor);
-    
+
     // Scale animation
     this.scene.tweens.add({
       targets: this.container,
@@ -181,7 +233,7 @@ export class UIButton {
 
   private onPress() {
     this.isPressed = true;
-    
+
     // Press animation
     this.scene.tweens.add({
       targets: this.container,
@@ -203,7 +255,7 @@ export class UIButton {
 
   private onRelease() {
     this.isPressed = false;
-    
+
     // Release animation
     const targetScale = this.isHovered ? 1.05 : 1;
     this.scene.tweens.add({
@@ -234,6 +286,57 @@ export class UIButton {
 
   public setVisible(visible: boolean) {
     this.container.setVisible(visible);
+  }
+
+  public updateSize(width: number, height: number) {
+    // Prevent updates during invalid states
+    if (!this.scene || !this.scene.sys || !this.scene.sys.game || (this.scene.sys.game as any).isDestroyed) {
+      return;
+    }
+
+    // Check if renderer is available
+    const renderer = this.scene.sys.game.renderer;
+    if (!renderer || (renderer.type === Phaser.WEBGL && !(renderer as any).gl)) {
+      // Defer update until renderer is ready
+      this.scene.time.delayedCall(50, () => {
+        this.updateSize(width, height);
+      });
+      return;
+    }
+
+    this.options.width = width;
+    this.options.height = height;
+
+    try {
+      // Update shadow safely
+      if (this.shadow && !this.shadow.scene) {
+        return; // Shadow has been destroyed
+      }
+      this.shadow.clear();
+      this.shadow.fillStyle(0x000000, 0.3);
+      this.shadow.fillRoundedRect(
+        -this.options.width / 2 + this.options.shadowOffset,
+        -this.options.height / 2 + this.options.shadowOffset,
+        this.options.width,
+        this.options.height,
+        this.options.borderRadius
+      );
+
+      // Update background safely
+      this.updateBackground(this.isHovered ? this.options.hoverColor : this.options.backgroundColor);
+
+      // Update container size
+      this.container.setSize(this.options.width, this.options.height);
+
+      // Re-setup interactions with new dimensions
+      this.setupInteractions();
+    } catch (error) {
+      console.warn('UIButton resize error (will retry):', error);
+      // Retry after a short delay
+      this.scene.time.delayedCall(100, () => {
+        this.updateSize(width, height);
+      });
+    }
   }
 
   public destroy() {

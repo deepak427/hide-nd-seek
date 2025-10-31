@@ -150,17 +150,36 @@ export class ResponsiveManager {
   private executeResize(): void {
     console.log('📱 Responsive resize:', this.deviceInfo);
     
-    // Update Phaser game size
-    this.updateGameSize();
+    // Check if scene is still valid
+    if (!this.scene || !this.scene.sys || !this.scene.sys.game || (this.scene.sys.game as any).isDestroyed) {
+      return;
+    }
     
-    // Call registered callbacks
-    this.resizeCallbacks.forEach(callback => {
-      try {
-        callback();
-      } catch (error) {
-        console.error('Resize callback error:', error);
-      }
-    });
+    // Check if renderer is available
+    const renderer = this.scene.sys.game.renderer;
+    if (!renderer) {
+      // Defer resize until renderer is ready
+      setTimeout(() => this.executeResize(), 50);
+      return;
+    }
+    
+    try {
+      // Update Phaser game size
+      this.updateGameSize();
+      
+      // Call registered callbacks with error handling
+      this.resizeCallbacks.forEach(callback => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('Resize callback error:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Execute resize error:', error);
+      // Retry after a short delay
+      setTimeout(() => this.executeResize(), 100);
+    }
   }
 
   /**

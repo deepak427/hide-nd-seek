@@ -242,6 +242,13 @@ export class SplashScene extends Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
+
+    // Add "Made with love by Deepu" text at bottom
+    this.add.text(width / 2, height - 30, '❤️ Made with love by Deepu', {
+      fontSize: '14px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textMuted
+    }).setOrigin(0.5);
   }
 
   private updateProgressBar(progress: number, x: number, y: number, width: number, height: number) {

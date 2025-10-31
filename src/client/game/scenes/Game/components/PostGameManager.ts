@@ -236,67 +236,101 @@ export class PostGameManager {
   }
 
   /**
-   * Show post creation success popup - Simplified version
+   * Show post creation success popup - Mobile responsive version
    */
   private showPostSuccess(postUrl: string, gameId: string, gameData: { mapKey: string; objectKey: string; relX: number; relY: number }) {
     const { width, height } = this.scene.scale;
 
+    // Calculate responsive dimensions with better mobile constraints
+    const isMobile = width < 768;
+    const isVerySmallMobile = width < 400 || height < 600;
+    
+    // Ensure popup fits within screen bounds with proper margins
+    const margin = isMobile ? 20 : 40;
+    const maxPanelWidth = width - (margin * 2);
+    const maxPanelHeight = height - (margin * 2);
+    
+    const panelWidth = Math.min(
+      isMobile ? Math.min(maxPanelWidth, width * 0.92) : 500, 
+      maxPanelWidth
+    );
+    const panelHeight = Math.min(
+      isMobile ? Math.min(maxPanelHeight, height * 0.75) : 320, 
+      maxPanelHeight
+    );
+
     // Generate short game ID (first 5 characters)
     const shortGameId = gameId.substring(0, 5).toUpperCase();
 
+    // Responsive font sizes with better mobile scaling
+    const iconSize = isVerySmallMobile ? 36 : (isMobile ? 42 : 48);
+    const titleSize = isVerySmallMobile ? 18 : (isMobile ? 20 : 24);
+    const subtitleSize = isVerySmallMobile ? 12 : (isMobile ? 14 : 16);
+    const gameIdSize = isVerySmallMobile ? 20 : (isMobile ? 24 : 28);
+
+    // Calculate vertical spacing based on panel height
+    const topMargin = panelHeight * 0.15;
+    const spacing = panelHeight * 0.12;
+
     // Success icon with animation
-    const successIcon = this.scene.add.text(width / 2, height / 2 - 80, '🎉', {
-      fontSize: '64px'
+    const successIcon = this.scene.add.text(0, -panelHeight/2 + topMargin, '🎉', {
+      fontSize: `${iconSize}px`
     }).setOrigin(0.5);
 
-    // Success message
-    const successTitle = this.scene.add.text(width / 2, height / 2 - 30, 'Challenge Created!', {
-      fontSize: '28px',
+    // Success message with corrected text
+    const successTitle = this.scene.add.text(0, -panelHeight/2 + topMargin + spacing, 'Challenge Created!', {
+      fontSize: `${titleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.success,
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);
 
-    const successSubtitle = this.scene.add.text(width / 2, height / 2, 'Share this Game ID with others to play:', {
-      fontSize: '16px',
+    const successSubtitle = this.scene.add.text(0, -panelHeight/2 + topMargin + spacing * 2, `You hid behind the ${gameData.objectKey}!\nShare this Game ID for others to find you:`, {
+      fontSize: `${subtitleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
-      align: 'center'
+      align: 'center',
+      wordWrap: { width: panelWidth - 40 }
     }).setOrigin(0.5);
 
     // Large Game ID display
-    const gameIdText = this.scene.add.text(width / 2, height / 2 + 35, shortGameId, {
-      fontSize: '32px',
+    const gameIdText = this.scene.add.text(0, -panelHeight/2 + topMargin + spacing * 3, shortGameId, {
+      fontSize: `${gameIdSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.accentCyan,
       align: 'center',
       fontStyle: 'bold',
       backgroundColor: Theme.bgSecondary,
-      padding: { x: 20, y: 10 }
+      padding: { x: isMobile ? 12 : 16, y: isMobile ? 6 : 8 }
     }).setOrigin(0.5);
 
-    // Action buttons
-    const copyIdBtn = this.createCopyGameIdButton(shortGameId);
-    const dashboardBtn = this.createGoDashboardButton();
-    const closeBtn = this.createCloseButton();
+    // Action buttons with responsive layout
+    const copyIdBtn = this.createCopyGameIdButton(shortGameId, isMobile, isVerySmallMobile);
+    const dashboardBtn = this.createGoDashboardButton(isMobile, isVerySmallMobile);
+    const closeBtn = this.createCloseButton(isMobile, isVerySmallMobile);
 
-    // Button container
-    const buttonContainer = this.scene.add.container(0, 90, [copyIdBtn, dashboardBtn, closeBtn]);
+    // Button container with responsive positioning - ensure it stays within bounds
+    const buttonY = Math.min(panelHeight/2 - (isMobile ? 35 : 45), panelHeight/2 - 30);
+    const buttonContainer = this.scene.add.container(0, buttonY, [copyIdBtn, dashboardBtn, closeBtn]);
 
-    // Background with enhanced styling
+    // Background with responsive styling
     const bg = this.scene.add.graphics();
     bg.fillStyle(parseInt(Theme.bgModal.replace('#', ''), 16), 0.98);
-    bg.fillRoundedRect(-250, -110, 500, 220, Theme.radiusLarge);
-    bg.lineStyle(4, parseInt(Theme.success.replace('#', ''), 16));
-    bg.strokeRoundedRect(-250, -110, 500, 220, Theme.radiusLarge);
+    bg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
+    bg.lineStyle(isMobile ? 2 : 3, parseInt(Theme.success.replace('#', ''), 16));
+    bg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
 
     // Add celebration glow effect
     const glow = this.scene.add.graphics();
     glow.fillStyle(parseInt(Theme.success.replace('#', ''), 16), 0.15);
-    glow.fillRoundedRect(-260, -120, 520, 240, Theme.radiusLarge);
+    glow.fillRoundedRect(-panelWidth/2 - 8, -panelHeight/2 - 8, panelWidth + 16, panelHeight + 16, Theme.radiusLarge);
 
-    const container = this.scene.add.container(width / 2, height / 2, [
+    // Ensure container is properly centered and within screen bounds
+    const containerX = Math.max(panelWidth/2 + margin, Math.min(width - panelWidth/2 - margin, width / 2));
+    const containerY = Math.max(panelHeight/2 + margin, Math.min(height - panelHeight/2 - margin, height / 2));
+
+    const container = this.scene.add.container(containerX, containerY, [
       glow, bg, successIcon, successTitle, successSubtitle, gameIdText, buttonContainer
     ]);
     container.setDepth(Theme.zIndexModal);
@@ -339,31 +373,36 @@ export class PostGameManager {
   }
 
   /**
-   * Create "Copy Game ID" button
+   * Create "Copy Game ID" button - Mobile responsive
    */
-  private createCopyGameIdButton(gameId: string): Phaser.GameObjects.Container {
+  private createCopyGameIdButton(gameId: string, isMobile: boolean, isVerySmallMobile: boolean = false): Phaser.GameObjects.Container {
+    const buttonWidth = isVerySmallMobile ? 100 : (isMobile ? 110 : 140);
+    const buttonHeight = isVerySmallMobile ? 32 : (isMobile ? 36 : 40);
+    const fontSize = isVerySmallMobile ? 12 : (isMobile ? 13 : 15);
+    const xPosition = isMobile ? 0 : -80;
+
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
 
     // Button text
     const btnText = this.scene.add.text(0, 0, '📋 Copy ID', {
-      fontSize: '16px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(-90, 0, [btnBg, btnText]);
-    button.setSize(160, 40);
+    const button = this.scene.add.container(xPosition, isMobile ? -30 : 0, [btnBg, btnText]);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
 
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.accentHover.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1.05,
@@ -376,7 +415,7 @@ export class PostGameManager {
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1,
@@ -405,31 +444,36 @@ export class PostGameManager {
   }
 
   /**
-   * Create "Go to Dashboard" button
+   * Create "Go to Dashboard" button - Mobile responsive
    */
-  private createGoDashboardButton(): Phaser.GameObjects.Container {
+  private createGoDashboardButton(isMobile: boolean, isVerySmallMobile: boolean = false): Phaser.GameObjects.Container {
+    const buttonWidth = isVerySmallMobile ? 100 : (isMobile ? 110 : 140);
+    const buttonHeight = isVerySmallMobile ? 32 : (isMobile ? 36 : 40);
+    const fontSize = isVerySmallMobile ? 12 : (isMobile ? 13 : 15);
+    const xPosition = isMobile ? 0 : 80;
+
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.success.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
 
     // Button text
     const btnText = this.scene.add.text(0, 0, '📊 Dashboard', {
-      fontSize: '16px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(90, 0, [btnBg, btnText]);
-    button.setSize(160, 40);
+    const button = this.scene.add.container(xPosition, isMobile ? 0 : 0, [btnBg, btnText]);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
 
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.success.replace('#', ''), 16), 0.8);
-      btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1.05,
@@ -442,7 +486,7 @@ export class PostGameManager {
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.success.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-80, -20, 160, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1,
@@ -475,38 +519,42 @@ export class PostGameManager {
 
 
   /**
-   * Create "Close" button
+   * Create "Close" button - Mobile responsive
    */
-  private createCloseButton(): Phaser.GameObjects.Container {
+  private createCloseButton(isMobile: boolean, isVerySmallMobile: boolean = false): Phaser.GameObjects.Container {
+    const buttonWidth = isVerySmallMobile ? 80 : (isMobile ? 90 : 100);
+    const buttonHeight = isVerySmallMobile ? 28 : (isMobile ? 32 : 36);
+    const fontSize = isVerySmallMobile ? 11 : (isMobile ? 12 : 14);
+
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-60, -20, 120, 40, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
 
     // Button text
     const btnText = this.scene.add.text(0, 0, '✕ Close', {
-      fontSize: '15px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(0, 50, [btnBg, btnText]);
-    button.setSize(120, 40);
+    const button = this.scene.add.container(0, isMobile ? 30 : 45, [btnBg, btnText]);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
 
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16), 0.2);
-      btnBg.fillRoundedRect(-60, -20, 120, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       btnText.setColor(Theme.error);
     });
 
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-60, -20, 120, 40, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       btnText.setColor(Theme.textSecondary);
     });
 

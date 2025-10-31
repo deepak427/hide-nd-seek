@@ -76,7 +76,9 @@ const config: Phaser.Types.Core.GameConfig = {
     // Enhanced touch configuration for mobile
     activePointers: 3,
     smoothFactor: 0.2,
-    windowEvents: false
+    windowEvents: true,
+    // Ensure input works in fullscreen
+    capture: true
   },
   dom: {
     createContainer: true

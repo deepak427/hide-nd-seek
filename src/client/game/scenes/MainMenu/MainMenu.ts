@@ -1,8 +1,8 @@
 import { Scene } from 'phaser';
 import { Theme } from '../../../style/theme';
 import { UIButton } from './components/UIButton';
-import { PlayerStatsPanel } from './components/PlayerStatsPanel';
 import { SceneTransition } from '../../utils/SceneTransition';
+import { SafeResizeHandler } from '../../utils/SafeResizeHandler';
 
 export class MainMenu extends Scene {
   private background!: Phaser.GameObjects.Graphics;
@@ -10,14 +10,10 @@ export class MainMenu extends Scene {
   private subtitle!: Phaser.GameObjects.Text;
   private playButton!: UIButton;
   private guessButton!: UIButton;
-  private dashboardButton!: UIButton;
   private leaderboardButton!: UIButton;
-  private settingsButton!: UIButton;
-  private creditsButton!: UIButton;
+  private profileButton!: UIButton;
   private versionText!: Phaser.GameObjects.Text;
-  
-  // Player statistics component
-  private statsPanel!: PlayerStatsPanel;
+  private resizeTimeout?: NodeJS.Timeout;
   
   // Player profile data (placeholder)
   private playerProfile: any = {
@@ -39,12 +35,15 @@ export class MainMenu extends Scene {
     
     this.createBackground();
     this.createTitle();
-    this.createPlayerStatsDisplay();
     this.createButtons();
     this.createFooter();
     this.setupAnimations();
     this.setupResize();
     this.setupEventListeners();
+    
+    // Ensure input is enabled for this scene
+    this.input.enabled = true;
+    console.log('🏠 MainMenu input enabled:', this.input.enabled);
     
     // Create smooth entrance animation
     SceneTransition.getInstance().createSceneEntrance(this, 'fade', 400);
@@ -84,35 +83,35 @@ export class MainMenu extends Scene {
   private createTitle() {
     const { width, height } = this.scale;
     
+    // Responsive font sizes
+    const isMobile = width < 768;
+    const titleFontSize = isMobile ? '36px' : '64px';
+    const subtitleFontSize = isMobile ? '16px' : '20px';
+    
     // Main title
-    this.title = this.add.text(width / 2, height * 0.2, 'HIDE & SEEK', {
-      fontSize: '64px',
+    this.title = this.add.text(width / 2, height * 0.25, 'HIDE & SEEK', {
+      fontSize: titleFontSize,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.lightGray,
       fontStyle: 'bold',
       stroke: Theme.primaryDark,
-      strokeThickness: 4
+      strokeThickness: isMobile ? 2 : 4
     }).setOrigin(0.5);
     
     // Add glow effect using shadow
-    this.title.setShadow(0, 0, Theme.accentCyan, 10);
+    this.title.setShadow(0, 0, Theme.accentCyan, isMobile ? 5 : 10);
     
     // Subtitle
-    this.subtitle = this.add.text(width / 2, height * 0.28, 'Find the hidden objects and climb the ranks', {
-      fontSize: '20px',
+    this.subtitle = this.add.text(width / 2, height * 0.32, 'Find the hidden objects and climb the ranks', {
+      fontSize: subtitleFontSize,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
-      align: 'center'
+      align: 'center',
+      wordWrap: { width: width * 0.8 }
     }).setOrigin(0.5);
   }
 
-  private async createPlayerStatsDisplay() {
-    const { width, height } = this.scale;
-    
-    // Create player statistics panel
-    this.statsPanel = new PlayerStatsPanel(this);
-    await this.statsPanel.create(width / 2, height * 0.4);
-  }
+
 
   private initializePlayerProfile() {
     // Initialize with default values - in real implementation, this would come from API
@@ -128,101 +127,94 @@ export class MainMenu extends Scene {
   private createButtons() {
     const { width, height } = this.scale;
     const centerX = width / 2;
-    const startY = height * 0.6;
-    const buttonSpacing = 60;
+    const isMobile = width < 768;
+    
+    // Calculate available space for buttons to prevent overflow
+    const availableHeight = height * 0.45; // Space from 0.5 to 0.95 (leaving room for footer)
+    const buttonCount = 4; // Reduced from 5 to 4 buttons
+    const maxButtonSpacing = Math.min(isMobile ? 80 : 90, availableHeight / buttonCount);
+    const buttonSpacing = Math.max(60, maxButtonSpacing); // Increased minimum spacing
+    
+    const startY = height * (isMobile ? 0.45 : 0.5);
+    
+    // Responsive button sizing
+    const primaryButtonWidth = isMobile ? Math.min(280, width * 0.8) : 220;
+    const primaryButtonHeight = isMobile ? 60 : 55;
+    const secondaryButtonWidth = isMobile ? Math.min(250, width * 0.75) : 200;
+    const secondaryButtonHeight = isMobile ? 55 : 50;
+    const fontSize = isMobile ? '20px' : '24px';
+    const secondaryFontSize = isMobile ? '18px' : '22px';
     
     // Play button - primary action with enhanced styling
-    this.playButton = new UIButton(this, centerX, startY, 'CREATE GAME', {
-      fontSize: '24px',
+    this.playButton = new UIButton(this, centerX, startY, 'HIDE', {
+      fontSize: fontSize,
       backgroundColor: Theme.accentCyan,
       hoverColor: Theme.accentHover,
       textColor: Theme.lightGray,
-      width: 220,
-      height: 55
+      width: primaryButtonWidth,
+      height: primaryButtonHeight
     });
     this.playButton.onClick(() => {
       this.startGame();
     });
     
     // Guess button - new option for guessing games
-    this.guessButton = new UIButton(this, centerX, startY + buttonSpacing, 'GUESS GAME', {
-      fontSize: '22px',
+    this.guessButton = new UIButton(this, centerX, startY + buttonSpacing, 'GUESS', {
+      fontSize: secondaryFontSize,
       backgroundColor: Theme.success,
       hoverColor: '#45a049',
       textColor: Theme.lightGray,
-      width: 200,
-      height: 50
+      width: secondaryButtonWidth,
+      height: secondaryButtonHeight
     });
     this.guessButton.onClick(() => {
       this.startGuessing();
     });
     
-    // Dashboard button - view game statistics
-    this.dashboardButton = new UIButton(this, centerX, startY + buttonSpacing * 2, 'DASHBOARD', {
-      fontSize: '22px',
-      backgroundColor: Theme.warning,
-      hoverColor: '#e68900',
-      textColor: Theme.lightGray,
-      width: 200,
-      height: 50
-    });
-    this.dashboardButton.onClick(() => {
-      this.openDashboard();
-    });
-    
     // Leaderboard button
-    this.leaderboardButton = new UIButton(this, centerX, startY + buttonSpacing * 3, 'LEADERBOARD', {
-      fontSize: '20px',
+    this.leaderboardButton = new UIButton(this, centerX, startY + buttonSpacing * 2, 'LEADERBOARD', {
+      fontSize: secondaryFontSize,
       backgroundColor: Theme.info,
       hoverColor: Theme.accentHover,
       textColor: Theme.lightGray,
-      width: 180,
-      height: 45
+      width: secondaryButtonWidth,
+      height: secondaryButtonHeight
     });
     this.leaderboardButton.onClick(() => {
       this.openLeaderboard();
     });
     
-    // Settings button
-    this.settingsButton = new UIButton(this, centerX, startY + buttonSpacing * 4, 'SETTINGS', {
-      fontSize: '20px',
+    // Profile button - view user stats and profile (ensure it stays within bounds)
+    const profileY = Math.min(startY + buttonSpacing * 3, height * 0.85);
+    this.profileButton = new UIButton(this, centerX, profileY, 'PROFILE', {
+      fontSize: secondaryFontSize,
       backgroundColor: Theme.secondaryDark,
       hoverColor: Theme.bgSecondary,
       textColor: Theme.lightGray,
-      width: 180,
-      height: 45
+      width: secondaryButtonWidth,
+      height: secondaryButtonHeight
     });
-    this.settingsButton.onClick(() => {
-      this.showSettings();
-    });
-    
-    // Credits button
-    this.creditsButton = new UIButton(this, centerX, startY + buttonSpacing * 5, 'CREDITS', {
-      fontSize: '20px',
-      backgroundColor: Theme.secondaryDark,
-      hoverColor: Theme.bgSecondary,
-      textColor: Theme.lightGray,
-      width: 180,
-      height: 45
-    });
-    this.creditsButton.onClick(() => {
-      this.showCredits();
+    this.profileButton.onClick(() => {
+      this.openProfile();
     });
   }
 
   private createFooter() {
     const { width, height } = this.scale;
+    const isMobile = width < 768;
+    const fontSize = isMobile ? '12px' : '14px';
+    const margin = isMobile ? 10 : 20;
     
     // Version text
-    this.versionText = this.add.text(width - 20, height - 20, 'v1.0.0', {
-      fontSize: '14px',
+    this.versionText = this.add.text(width - margin, height - margin, 'v1.0.0', {
+      fontSize: fontSize,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textMuted
     }).setOrigin(1);
     
-    // Made with love text
-    this.add.text(20, height - 20, '❤️ Made with Phaser', {
-      fontSize: '14px',
+    // Made with love by Deepu text
+    this.add.text(margin, height - margin, '❤️ Made with love by Deepu', {
+      fontSize: fontSize,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textMuted
     }).setOrigin(0, 1);
@@ -265,25 +257,8 @@ export class MainMenu extends Scene {
       ease: 'Power2.easeOut'
     });
     
-    // Stats panel entrance animation
-    if (this.statsPanel && this.statsPanel.getContainer()) {
-      const container = this.statsPanel.getContainer();
-      if (container) {
-        container.setAlpha(0);
-        container.setY(container.y + 30);
-        this.tweens.add({
-          targets: container,
-          alpha: 1,
-          y: container.y - 30,
-          duration: 600,
-          delay: 500,
-          ease: 'Power2.easeOut'
-        });
-      }
-    }
-    
     // Stagger button animations
-    const buttons = [this.playButton, this.guessButton, this.dashboardButton, this.leaderboardButton, this.settingsButton, this.creditsButton];
+    const buttons = [this.playButton, this.guessButton, this.leaderboardButton, this.profileButton];
     buttons.forEach((button, index) => {
       if (button && button.container) {
         button.container.setAlpha(0);
@@ -303,50 +278,84 @@ export class MainMenu extends Scene {
 
   private setupResize() {
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
-      this.handleResize(gameSize.width, gameSize.height);
+      // Use SafeResizeHandler to prevent WebGL context errors
+      SafeResizeHandler.getInstance().safeResize(
+        this,
+        'MainMenu',
+        () => this.handleResize(gameSize.width, gameSize.height),
+        150
+      );
     });
   }
 
   private handleResize(width: number, height: number) {
-    // Update background
-    if (this.background) {
-      this.background.clear();
-      this.background.fillGradientStyle(
+    const isMobile = width < 768;
+    
+    // Update background safely
+    SafeResizeHandler.safeUpdateGraphics(this.background, (graphics) => {
+      graphics.fillGradientStyle(
         parseInt(Theme.primaryDark.replace('#', ''), 16),
         parseInt(Theme.primaryDark.replace('#', ''), 16),
         parseInt(Theme.secondaryDark.replace('#', ''), 16),
         parseInt(Theme.secondaryDark.replace('#', ''), 16),
         1
       );
-      this.background.fillRect(0, 0, width, height);
-    }
+      graphics.fillRect(0, 0, width, height);
+    });
     
-    // Update title positions
-    this.title.setPosition(width / 2, height * 0.2);
-    this.subtitle.setPosition(width / 2, height * 0.28);
+    // Update title safely
+    SafeResizeHandler.safeUpdateText(this.title, {
+      position: { x: width / 2, y: height * 0.25 },
+      fontSize: isMobile ? '36px' : '64px',
+      stroke: { color: Theme.primaryDark, thickness: isMobile ? 2 : 4 },
+      shadow: { x: 0, y: 0, color: Theme.accentCyan, blur: isMobile ? 5 : 10 }
+    });
     
-    // Update stats panel position
-    if (this.statsPanel && this.statsPanel.getContainer()) {
-      const container = this.statsPanel.getContainer();
-      if (container) {
-        container.setPosition(width / 2, height * 0.4);
-      }
-    }
+    // Update subtitle safely
+    SafeResizeHandler.safeUpdateText(this.subtitle, {
+      position: { x: width / 2, y: height * 0.32 },
+      fontSize: isMobile ? '16px' : '20px',
+      wordWrap: width * 0.8
+    });
     
-    // Update button positions
+    // Update button positions with proper spacing calculation
     const centerX = width / 2;
-    const startY = height * 0.55;
-    const buttonSpacing = 60;
+    const availableHeight = height * 0.45;
+    const buttonCount = 4; // Updated to 4 buttons
+    const maxButtonSpacing = Math.min(isMobile ? 80 : 90, availableHeight / buttonCount);
+    const buttonSpacing = Math.max(60, maxButtonSpacing);
+    const startY = height * (isMobile ? 0.45 : 0.5);
     
-    if (this.playButton) this.playButton.setPosition(centerX, startY);
-    if (this.guessButton) this.guessButton.setPosition(centerX, startY + buttonSpacing);
-    if (this.dashboardButton) this.dashboardButton.setPosition(centerX, startY + buttonSpacing * 2);
-    if (this.leaderboardButton) this.leaderboardButton.setPosition(centerX, startY + buttonSpacing * 3);
-    if (this.settingsButton) this.settingsButton.setPosition(centerX, startY + buttonSpacing * 4);
-    if (this.creditsButton) this.creditsButton.setPosition(centerX, startY + buttonSpacing * 5);
+    // Update button sizes
+    const primaryButtonWidth = isMobile ? Math.min(280, width * 0.8) : 220;
+    const primaryButtonHeight = isMobile ? 60 : 55;
+    const secondaryButtonWidth = isMobile ? Math.min(250, width * 0.75) : 200;
+    const secondaryButtonHeight = isMobile ? 55 : 50;
     
-    // Update footer
-    this.versionText.setPosition(width - 20, height - 20);
+    // Update buttons safely
+    if (this.playButton && this.playButton.container && this.playButton.container.scene) {
+      this.playButton.setPosition(centerX, startY);
+      this.playButton.updateSize(primaryButtonWidth, primaryButtonHeight);
+    }
+    if (this.guessButton && this.guessButton.container && this.guessButton.container.scene) {
+      this.guessButton.setPosition(centerX, startY + buttonSpacing);
+      this.guessButton.updateSize(secondaryButtonWidth, secondaryButtonHeight);
+    }
+    if (this.leaderboardButton && this.leaderboardButton.container && this.leaderboardButton.container.scene) {
+      this.leaderboardButton.setPosition(centerX, startY + buttonSpacing * 2);
+      this.leaderboardButton.updateSize(secondaryButtonWidth, secondaryButtonHeight);
+    }
+    if (this.profileButton && this.profileButton.container && this.profileButton.container.scene) {
+      const profileY = Math.min(startY + buttonSpacing * 3, height * 0.85);
+      this.profileButton.setPosition(centerX, profileY);
+      this.profileButton.updateSize(secondaryButtonWidth, secondaryButtonHeight);
+    }
+    
+    // Update footer safely
+    SafeResizeHandler.safeUpdateText(this.versionText, {
+      position: { x: width - (isMobile ? 10 : 20), y: height - (isMobile ? 10 : 20) },
+      fontSize: isMobile ? '12px' : '14px'
+    });
   }
 
   private startGame() {
@@ -363,28 +372,18 @@ export class MainMenu extends Scene {
     SceneTransition.getInstance().fadeToScene(this, 'GuessScene', undefined, 500);
   }
 
-  private openDashboard() {
-    console.log('📊 Opening dashboard');
-    
-    // Use smooth transition to dashboard
-    SceneTransition.getInstance().fadeToScene(this, 'Dashboard', undefined, 500);
-  }
-
   private openLeaderboard() {
     console.log('🏆 Opening leaderboard');
     
-    // Use smooth transition to leaderboard
-    SceneTransition.getInstance().fadeToScene(this, 'LeaderboardScene', undefined, 500);
+    // Use smooth transition to dashboard (which contains leaderboard functionality)
+    SceneTransition.getInstance().fadeToScene(this, 'Dashboard', undefined, 500);
   }
 
-  private showSettings() {
-    // Placeholder for settings
-    console.log('Settings clicked - TODO: Implement settings menu');
-  }
-
-  private showCredits() {
-    // Placeholder for credits
-    console.log('Credits clicked - TODO: Implement credits screen');
+  private openProfile() {
+    console.log('👤 Opening profile');
+    
+    // Use smooth transition to profile scene
+    SceneTransition.getInstance().fadeToScene(this, 'ProfileScene', undefined, 500);
   }
 
   private setupEventListeners() {
@@ -400,13 +399,23 @@ export class MainMenu extends Scene {
   }
 
   private async refreshPlayerStats() {
-    if (this.statsPanel) {
-      try {
-        await this.statsPanel.refresh();
-        console.log('🔄 Player stats refreshed');
-      } catch (error) {
-        console.error('Failed to refresh player stats:', error);
-      }
+    // Stats are now handled in the ProfileScene
+    console.log('🔄 Player stats refresh requested - handled by ProfileScene');
+  }
+
+  destroy() {
+    // Clean up resize timeout
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
     }
+    
+    // Clean up resize listener
+    this.scale.off('resize');
+    
+    // Clean up event listeners
+    this.events.off('refresh-player-stats');
+    this.game.events.off('player-stats-updated');
+    
+    // Scene cleanup is handled by Phaser automatically
   }
 }

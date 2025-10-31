@@ -44,17 +44,22 @@ export class Dashboard extends Scene {
   private createTitle() {
     const { width, height } = this.scale;
     
+    // Calculate responsive font sizes
+    const scaleFactor = Math.min(width / 1024, height / 768, 1);
+    const titleSize = Math.max(24, 48 * scaleFactor);
+    const subtitleSize = Math.max(14, 18 * scaleFactor);
+    
     // Main title
-    this.title = this.add.text(width / 2, height * 0.2, '📊 DASHBOARD', {
-      fontSize: '48px',
+    this.title = this.add.text(width / 2, height * 0.15, '📊 DASHBOARD', {
+      fontSize: `${titleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.accentCyan,
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
     // Subtitle
-    this.add.text(width / 2, height * 0.28, 'Enter a Game ID to view statistics', {
-      fontSize: '18px',
+    this.add.text(width / 2, height * 0.22, 'Enter a Game ID to view statistics', {
+      fontSize: `${subtitleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       align: 'center'
@@ -64,9 +69,16 @@ export class Dashboard extends Scene {
   private createInputSection() {
     const { width, height } = this.scale;
     
+    // Calculate responsive sizes
+    const scaleFactor = Math.min(width / 1024, height / 768, 1);
+    const labelSize = Math.max(16, 20 * scaleFactor);
+    const inputWidth = Math.min(300, width * 0.8);
+    const inputHeight = Math.max(40, 50 * scaleFactor);
+    const fontSize = Math.max(16, 20 * scaleFactor);
+    
     // Input label
-    this.add.text(width / 2, height * 0.4, 'Game ID:', {
-      fontSize: '20px',
+    this.add.text(width / 2, height * 0.35, 'Game ID:', {
+      fontSize: `${labelSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
@@ -78,9 +90,9 @@ export class Dashboard extends Scene {
     inputElement.placeholder = 'Enter Game ID (e.g. SKJ7D)';
     inputElement.maxLength = 5;
     inputElement.style.cssText = `
-      width: 300px;
-      height: 50px;
-      font-size: 20px;
+      width: ${inputWidth}px;
+      height: ${inputHeight}px;
+      font-size: ${fontSize}px;
       font-family: 'Inter', Arial, sans-serif;
       font-weight: bold;
       text-align: center;
@@ -123,7 +135,7 @@ export class Dashboard extends Scene {
       }
     });
     
-    this.inputBox = this.add.dom(width / 2, height * 0.5, inputElement);
+    this.inputBox = this.add.dom(width / 2, height * 0.45, inputElement);
     this.inputBox.setDepth(1000);
     
     console.log('📊 Dashboard input box created:', this.inputBox);
@@ -136,7 +148,7 @@ export class Dashboard extends Scene {
     // Load Dashboard button
     this.loadButton = this.createButton(
       width / 2, 
-      height * 0.6, 
+      height * 0.58, 
       '📊 Load Dashboard', 
       Theme.accentCyan,
       () => this.loadDashboard()
@@ -145,7 +157,7 @@ export class Dashboard extends Scene {
     // Back button
     this.backButton = this.createButton(
       width / 2, 
-      height * 0.75, 
+      height * 0.7, 
       '← Back to Menu', 
       Theme.bgSecondary,
       () => this.goBack()
@@ -159,28 +171,36 @@ export class Dashboard extends Scene {
     color: string, 
     callback: () => void
   ): Phaser.GameObjects.Container {
+    const { width, height } = this.scale;
+    
+    // Calculate responsive button size
+    const scaleFactor = Math.min(width / 1024, height / 768, 1);
+    const buttonWidth = Math.min(240, width * 0.7);
+    const buttonHeight = Math.max(40, 50 * scaleFactor);
+    const fontSize = Math.max(14, 18 * scaleFactor);
+    
     // Button background
     const btnBg = this.add.graphics();
     btnBg.fillStyle(parseInt(color.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-120, -25, 240, 50, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
     
     // Button text
     const btnText = this.add.text(0, 0, text, {
-      fontSize: '18px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
     const button = this.add.container(x, y, [btnBg, btnText]);
-    button.setSize(240, 50);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
     
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(color.replace('#', ''), 16), 0.8);
-      btnBg.fillRoundedRect(-120, -25, 240, 50, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.tweens.add({
         targets: button,
         scaleX: 1.05,
@@ -193,7 +213,7 @@ export class Dashboard extends Scene {
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(color.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-120, -25, 240, 50, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.tweens.add({
         targets: button,
         scaleX: 1,
@@ -272,12 +292,17 @@ export class Dashboard extends Scene {
   private showError(message: string) {
     const { width, height } = this.scale;
     
+    // Calculate responsive font size
+    const scaleFactor = Math.min(width / 1024, height / 768, 1);
+    const fontSize = Math.max(14, 16 * scaleFactor);
+    
     // Create error message
-    const errorText = this.add.text(width / 2, height * 0.65, message, {
-      fontSize: '16px',
+    const errorText = this.add.text(width / 2, height * 0.8, message, {
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.error,
-      align: 'center'
+      align: 'center',
+      wordWrap: { width: width * 0.8 }
     }).setOrigin(0.5);
     
     // Fade in error
@@ -326,11 +351,37 @@ export class Dashboard extends Scene {
       this.background.fillRect(0, 0, width, height);
     }
     
-    // Update positions
-    this.title.setPosition(width / 2, height * 0.2);
-    if (this.inputBox) this.inputBox.setPosition(width / 2, height * 0.5);
-    if (this.loadButton) this.loadButton.setPosition(width / 2, height * 0.6);
-    if (this.backButton) this.backButton.setPosition(width / 2, height * 0.75);
+    // Calculate responsive font sizes and positions
+    const scaleFactor = Math.min(width / 1024, height / 768, 1);
+    const titleSize = Math.max(24, 48 * scaleFactor);
+    const subtitleSize = Math.max(14, 18 * scaleFactor);
+    
+    // Update title
+    if (this.title) {
+      this.title.setPosition(width / 2, height * 0.15);
+      this.title.setFontSize(titleSize);
+    }
+    
+    // Update input box
+    if (this.inputBox) {
+      this.inputBox.setPosition(width / 2, height * 0.45);
+      
+      // Update input element styles
+      const inputElement = this.inputBox.node as HTMLInputElement;
+      if (inputElement) {
+        const inputWidth = Math.min(300, width * 0.8);
+        const inputHeight = Math.max(40, 50 * scaleFactor);
+        const fontSize = Math.max(16, 20 * scaleFactor);
+        
+        inputElement.style.width = `${inputWidth}px`;
+        inputElement.style.height = `${inputHeight}px`;
+        inputElement.style.fontSize = `${fontSize}px`;
+      }
+    }
+    
+    // Update buttons
+    if (this.loadButton) this.loadButton.setPosition(width / 2, height * 0.58);
+    if (this.backButton) this.backButton.setPosition(width / 2, height * 0.7);
   }
 
   destroy() {

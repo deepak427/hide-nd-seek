@@ -56,28 +56,44 @@ export class ShareManager {
       lineSpacing: 4
     }).setOrigin(0.5);
 
-    // Got it button
-    const gotItBtn = this.createGotItButton();
+    // Calculate responsive dimensions
+    const isMobile = width < 768;
+    const margin = isMobile ? 20 : 40;
+    const maxPanelWidth = width - (margin * 2);
+    const maxPanelHeight = height - (margin * 2);
+    
+    const panelWidth = Math.min(isMobile ? Math.min(maxPanelWidth, width * 0.9) : 400, maxPanelWidth);
+    const panelHeight = Math.min(isMobile ? Math.min(maxPanelHeight, height * 0.6) : 240, maxPanelHeight);
 
-    // Background - make it larger to contain all content
+    // Got it button
+    const gotItBtn = this.createGotItButton(panelHeight);
+
+    // Background - responsive sizing
     const bg = this.scene.add.graphics();
     bg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16), 0.95);
-    bg.fillRoundedRect(-200, -120, 400, 240, Theme.radiusLarge);
+    bg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
     bg.lineStyle(2, parseInt(Theme.accentCyan.replace('#', ''), 16));
-    bg.strokeRoundedRect(-200, -120, 400, 240, Theme.radiusLarge);
+    bg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
 
-    // Adjust positions to fit within the larger background
-    guideIcon.setPosition(0, -80);
-    title.setPosition(0, -50);
-    tipsText.setPosition(0, -10);
+    // Adjust positions to fit within the responsive background
+    const topMargin = panelHeight * 0.2;
+    const spacing = panelHeight * 0.15;
+    
+    guideIcon.setPosition(0, -panelHeight/2 + topMargin);
+    title.setPosition(0, -panelHeight/2 + topMargin + spacing);
+    tipsText.setPosition(0, -panelHeight/2 + topMargin + spacing * 2);
 
-    const container = this.scene.add.container(width / 2, height / 2, [
+    // Ensure container is properly centered and within screen bounds
+    const containerX = Math.max(panelWidth/2 + margin, Math.min(width - panelWidth/2 - margin, width / 2));
+    const containerY = Math.max(panelHeight/2 + margin, Math.min(height - panelHeight/2 - margin, height / 2));
+
+    const container = this.scene.add.container(containerX, containerY, [
       bg, guideIcon, title, tipsText, gotItBtn
     ]);
     container.setDepth(1000);
 
     // Ensure container is properly sized and interactive
-    container.setSize(400, 240);
+    container.setSize(panelWidth, panelHeight);
 
     // Add a semi-transparent overlay behind the popup
     const overlay = this.scene.add.graphics();
@@ -85,7 +101,7 @@ export class ShareManager {
     overlay.fillRect(0, 0, width, height);
     overlay.setDepth(999);
     container.add(overlay);
-    overlay.setPosition(-width / 2, -height / 2);
+    overlay.setPosition(-containerX, -containerY);
 
     // Animation
     container.setScale(0);
@@ -109,7 +125,7 @@ export class ShareManager {
   /**
    * Create "Got it" button for guidance popup
    */
-  private createGotItButton(): Phaser.GameObjects.Container {
+  private createGotItButton(panelHeight: number = 240): Phaser.GameObjects.Container {
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
@@ -123,7 +139,7 @@ export class ShareManager {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(0, 60, [btnBg, btnText]);
+    const button = this.scene.add.container(0, panelHeight/2 - 35, [btnBg, btnText]);
     button.setSize(120, 36);
     button.setInteractive();
 
@@ -359,57 +375,94 @@ export class ShareManager {
   private showPostSuccess(postUrl: string, gameId: string) {
     const { width, height } = this.scene.scale;
 
+    // Calculate responsive dimensions with better mobile constraints
+    const isMobile = width < 768;
+    const isVerySmallMobile = width < 400 || height < 600;
+    
+    // Ensure popup fits within screen bounds with proper margins
+    const margin = isMobile ? 20 : 40;
+    const maxPanelWidth = width - (margin * 2);
+    const maxPanelHeight = height - (margin * 2);
+    
+    const panelWidth = Math.min(
+      isMobile ? Math.min(maxPanelWidth, width * 0.92) : 500, 
+      maxPanelWidth
+    );
+    const panelHeight = Math.min(
+      isMobile ? Math.min(maxPanelHeight, height * 0.65) : 240, 
+      maxPanelHeight
+    );
+
+    // Generate short game ID (first 5 characters)
+    const shortGameId = gameId.substring(0, 5).toUpperCase();
+
+    // Responsive font sizes with better mobile scaling
+    const iconSize = isVerySmallMobile ? 32 : (isMobile ? 36 : 42);
+    const titleSize = isVerySmallMobile ? 16 : (isMobile ? 18 : 22);
+    const subtitleSize = isVerySmallMobile ? 11 : (isMobile ? 13 : 15);
+    const gameIdSize = isVerySmallMobile ? 9 : (isMobile ? 10 : 11);
+
+    // Calculate vertical spacing based on panel height
+    const topMargin = panelHeight * 0.15;
+    const spacing = panelHeight * 0.15;
+
     // Success icon with animation
-    const successIcon = this.scene.add.text(width / 2, height / 2 - 60, '🎉', {
-      fontSize: '48px'
+    const successIcon = this.scene.add.text(0, -panelHeight/2 + topMargin, '🎉', {
+      fontSize: `${iconSize}px`
     }).setOrigin(0.5);
 
-    // Success message
-    const successTitle = this.scene.add.text(width / 2, height / 2 - 20, 'Post Created Successfully!', {
-      fontSize: '24px',
+    // Success message with corrected text
+    const successTitle = this.scene.add.text(0, -panelHeight/2 + topMargin + spacing, 'Challenge Created!', {
+      fontSize: `${titleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.success,
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);
 
-    const successSubtitle = this.scene.add.text(width / 2, height / 2 + 5, 'Your hide-and-seek challenge is now live on Reddit', {
-      fontSize: '16px',
+    const successSubtitle = this.scene.add.text(0, -panelHeight/2 + topMargin + spacing * 1.8, 'Your hiding challenge is now live on Reddit', {
+      fontSize: `${subtitleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
-      align: 'center'
+      align: 'center',
+      wordWrap: { width: panelWidth - 40 }
     }).setOrigin(0.5);
 
     // Game ID display
-    const gameIdText = this.scene.add.text(width / 2, height / 2 + 30, `Game ID: ${gameId}`, {
-      fontSize: '12px',
+    const gameIdText = this.scene.add.text(0, -panelHeight/2 + topMargin + spacing * 2.4, `Game ID: ${shortGameId}`, {
+      fontSize: `${gameIdSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       align: 'center',
       fontStyle: 'italic'
     }).setOrigin(0.5);
 
-    // Action buttons
-    const openBtn = this.createOpenRedditButton(postUrl);
-    const copyBtn = this.createCopyLinkButton(postUrl);
-    const closeBtn = this.createCloseButton();
+    // Action buttons with responsive layout
+    const openBtn = this.createOpenRedditButton(postUrl, isMobile, isVerySmallMobile);
+    const copyBtn = this.createCopyLinkButton(postUrl, isMobile, isVerySmallMobile);
+    const closeBtn = this.createCloseButton(isMobile, isVerySmallMobile);
 
-    // Button container
-    const buttonContainer = this.scene.add.container(0, 70, [openBtn, copyBtn, closeBtn]);
+    // Button container with responsive positioning - ensure it stays within bounds
+    const buttonY = Math.min(panelHeight/2 - (isMobile ? 30 : 35), panelHeight/2 - 25);
+    const buttonContainer = this.scene.add.container(0, buttonY, [openBtn, copyBtn, closeBtn]);
 
-    // Background with gradient effect
+    // Background with responsive styling
     const bg = this.scene.add.graphics();
     bg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16), 0.98);
-    bg.fillRoundedRect(-280, -100, 560, 200, Theme.radiusLarge);
-    bg.lineStyle(3, parseInt(Theme.success.replace('#', ''), 16));
-    bg.strokeRoundedRect(-280, -100, 560, 200, Theme.radiusLarge);
+    bg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
+    bg.lineStyle(isMobile ? 2 : 3, parseInt(Theme.success.replace('#', ''), 16));
+    bg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusLarge);
 
     // Add subtle glow effect
     const glow = this.scene.add.graphics();
     glow.fillStyle(parseInt(Theme.success.replace('#', ''), 16), 0.1);
-    glow.fillRoundedRect(-285, -105, 570, 210, Theme.radiusLarge);
+    glow.fillRoundedRect(-panelWidth/2 - 5, -panelHeight/2 - 5, panelWidth + 10, panelHeight + 10, Theme.radiusLarge);
 
-    const container = this.scene.add.container(width / 2, height / 2, [
+    // Ensure container is properly centered and within screen bounds
+    const containerX = Math.max(panelWidth/2 + margin, Math.min(width - panelWidth/2 - margin, width / 2));
+    const containerY = Math.max(panelHeight/2 + margin, Math.min(height - panelHeight/2 - margin, height / 2));
+
+    const container = this.scene.add.container(containerX, containerY, [
       glow, bg, successIcon, successTitle, successSubtitle, gameIdText, buttonContainer
     ]);
     container.setDepth(1000);
@@ -456,29 +509,34 @@ export class ShareManager {
     console.log(`🎉 Game posted successfully: ${postUrl} (Game ID: ${gameId})`);
   }
 
-  private createOpenRedditButton(postUrl: string): Phaser.GameObjects.Container {
+  private createOpenRedditButton(postUrl: string, isMobile: boolean, isVerySmallMobile: boolean = false): Phaser.GameObjects.Container {
+    const buttonWidth = isVerySmallMobile ? 110 : (isMobile ? 120 : 160);
+    const buttonHeight = isVerySmallMobile ? 30 : (isMobile ? 32 : 36);
+    const fontSize = isVerySmallMobile ? 10 : (isMobile ? 11 : 13);
+    const xPosition = isMobile ? 0 : -100;
+
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-90, -18, 180, 36, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
 
     // Button text
     const btnText = this.scene.add.text(0, 0, '🔗 Open on Reddit', {
-      fontSize: '14px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: '#FFFFFF',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(-120, 0, [btnBg, btnText]);
-    button.setSize(180, 36);
+    const button = this.scene.add.container(xPosition, isMobile ? -25 : 0, [btnBg, btnText]);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
 
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.primaryDark.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-90, -18, 180, 36, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1.05,
@@ -491,7 +549,7 @@ export class ShareManager {
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-90, -18, 180, 36, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1,
@@ -528,29 +586,34 @@ export class ShareManager {
     return button;
   }
 
-  private createCopyLinkButton(postUrl: string): Phaser.GameObjects.Container {
+  private createCopyLinkButton(postUrl: string, isMobile: boolean, isVerySmallMobile: boolean = false): Phaser.GameObjects.Container {
+    const buttonWidth = isVerySmallMobile ? 100 : (isMobile ? 110 : 120);
+    const buttonHeight = isVerySmallMobile ? 30 : (isMobile ? 32 : 36);
+    const fontSize = isVerySmallMobile ? 10 : (isMobile ? 11 : 13);
+    const xPosition = isMobile ? 0 : 0;
+
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-70, -18, 140, 36, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
 
     // Button text
     const btnText = this.scene.add.text(0, 0, '📋 Copy Link', {
-      fontSize: '14px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textPrimary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(0, 0, [btnBg, btnText]);
-    button.setSize(140, 36);
+    const button = this.scene.add.container(xPosition, isMobile ? 0 : 0, [btnBg, btnText]);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
 
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.accentHover.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-70, -18, 140, 36, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1.05,
@@ -563,7 +626,7 @@ export class ShareManager {
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.accentCyan.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-70, -18, 140, 36, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       this.scene.tweens.add({
         targets: button,
         scaleX: 1,
@@ -591,36 +654,41 @@ export class ShareManager {
     return button;
   }
 
-  private createCloseButton(): Phaser.GameObjects.Container {
+  private createCloseButton(isMobile: boolean, isVerySmallMobile: boolean = false): Phaser.GameObjects.Container {
+    const buttonWidth = isVerySmallMobile ? 70 : (isMobile ? 80 : 90);
+    const buttonHeight = isVerySmallMobile ? 26 : (isMobile ? 28 : 32);
+    const fontSize = isVerySmallMobile ? 10 : (isMobile ? 11 : 13);
+    const xPosition = isMobile ? 0 : 100;
+
     // Button background
     const btnBg = this.scene.add.graphics();
     btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
-    btnBg.fillRoundedRect(-50, -18, 100, 36, Theme.radiusMedium);
+    btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
 
     // Button text
     const btnText = this.scene.add.text(0, 0, '✕ Close', {
-      fontSize: '14px',
+      fontSize: `${fontSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.textSecondary,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const button = this.scene.add.container(120, 0, [btnBg, btnText]);
-    button.setSize(100, 36);
+    const button = this.scene.add.container(xPosition, isMobile ? 25 : 0, [btnBg, btnText]);
+    button.setSize(buttonWidth, buttonHeight);
     button.setInteractive();
 
     // Hover effects
     button.on('pointerover', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16), 0.2);
-      btnBg.fillRoundedRect(-50, -18, 100, 36, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       btnText.setColor(Theme.error);
     });
 
     button.on('pointerout', () => {
       btnBg.clear();
       btnBg.fillStyle(parseInt(Theme.bgSecondary.replace('#', ''), 16));
-      btnBg.fillRoundedRect(-50, -18, 100, 36, Theme.radiusMedium);
+      btnBg.fillRoundedRect(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight, Theme.radiusMedium);
       btnText.setColor(Theme.textSecondary);
     });
 

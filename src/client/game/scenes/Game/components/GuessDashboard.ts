@@ -89,16 +89,22 @@ export class GuessDashboard {
 
     const { width, height } = this.scene.scale;
 
+    // Calculate responsive panel size
+    const scaleFactor = Math.min(width / 1024, height / 768, 1);
+    const panelWidth = Math.min(600, width * 0.9);
+    const panelHeight = Math.min(500, height * 0.8);
+
     // Create main dashboard panel
     const panelBg = this.scene.add.graphics();
     panelBg.fillStyle(parseInt(Theme.bgPanel.replace('#', ''), 16), 0.95);
-    panelBg.fillRoundedRect(-300, -250, 600, 500, Theme.radiusMedium);
+    panelBg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusMedium);
     panelBg.lineStyle(2, parseInt(Theme.borderLight.replace('#', ''), 16));
-    panelBg.strokeRoundedRect(-300, -250, 600, 500, Theme.radiusMedium);
+    panelBg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, Theme.radiusMedium);
 
     // Title
-    const title = this.scene.add.text(0, -220, '📊 Guess Dashboard', {
-      fontSize: '28px',
+    const titleSize = Math.max(20, 28 * scaleFactor);
+    const title = this.scene.add.text(0, -panelHeight/2 + 30, '📊 Guess Dashboard', {
+      fontSize: `${titleSize}px`,
       fontFamily: 'Inter, Arial, sans-serif',
       color: Theme.accentCyan,
       fontStyle: 'bold'
@@ -120,8 +126,11 @@ export class GuessDashboard {
     // Add manual refresh button
     const refreshButton = this.createRefreshButton();
 
+    // Add close button
+    const closeButton = this.createCloseButton();
+
     // Combine all elements
-    const allElements = [panelBg, title, lastUpdate, refreshButton, ...statsElements, ...guessElements];
+    const allElements = [panelBg, title, lastUpdate, refreshButton, closeButton, ...statsElements, ...guessElements];
 
     // Create dashboard container
     this.dashboardContainer = this.scene.add.container(width / 2, height / 2, allElements);
@@ -338,6 +347,81 @@ export class GuessDashboard {
     });
 
     return button;
+  }
+
+  private createCloseButton(): Phaser.GameObjects.Container {
+    // Close button background (circular)
+    const closeBg = this.scene.add.graphics();
+    closeBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16));
+    closeBg.fillCircle(0, 0, 18);
+
+    // Close button text (X)
+    const closeText = this.scene.add.text(0, 0, '✕', {
+      fontSize: '20px',
+      fontFamily: 'Inter, Arial, sans-serif',
+      color: Theme.textPrimary,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    // Position close button at top-right corner of panel
+    const { width, height } = this.scene.scale;
+    const panelWidth = Math.min(600, width * 0.9);
+    const panelHeight = Math.min(500, height * 0.8);
+    
+    const closeButton = this.scene.add.container(panelWidth/2 - 25, -panelHeight/2 + 25, [closeBg, closeText]);
+    closeButton.setSize(36, 36);
+    closeButton.setInteractive();
+
+    // Hover effects
+    closeButton.on('pointerover', () => {
+      closeBg.clear();
+      closeBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16), 0.8);
+      closeBg.fillCircle(0, 0, 18);
+      this.scene.tweens.add({
+        targets: closeButton,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 150,
+        ease: 'Power2.easeOut'
+      });
+    });
+
+    closeButton.on('pointerout', () => {
+      closeBg.clear();
+      closeBg.fillStyle(parseInt(Theme.error.replace('#', ''), 16));
+      closeBg.fillCircle(0, 0, 18);
+      this.scene.tweens.add({
+        targets: closeButton,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150,
+        ease: 'Power2.easeOut'
+      });
+    });
+
+    closeButton.on('pointerdown', () => {
+      console.log('❌ Closing guess dashboard');
+      this.closeDashboard();
+    });
+
+    return closeButton;
+  }
+
+  private closeDashboard(): void {
+    if (!this.dashboardContainer) return;
+
+    // Exit animation
+    this.scene.tweens.add({
+      targets: this.dashboardContainer,
+      alpha: 0,
+      scaleX: 0.9,
+      scaleY: 0.9,
+      duration: 300,
+      ease: 'Power2.easeIn',
+      onComplete: () => {
+        this.destroy();
+      }
+    });
   }
 
   private showRefreshIndicator(): void {

@@ -10,7 +10,7 @@ export class Preloader extends Scene {
 
   init() {
     const { width, height } = this.scale;
-    
+
     // Set background color to match theme
     this.cameras.main.setBackgroundColor(Theme.primaryDark);
 
@@ -44,7 +44,7 @@ export class Preloader extends Scene {
     // Load essential game assets - using available assets
     this.load.image('background', 'assets/background.png');
     this.load.image('splash-bg', 'assets/splash.png');
-    
+
     // Load any additional assets needed for the main menu and game
     // This is where you would load map assets, UI elements, etc.
   }
@@ -52,14 +52,14 @@ export class Preloader extends Scene {
   create() {
     // When all the assets have loaded, create global animations and objects
     console.log('🎨 Assets loaded, transitioning to main menu');
-    
+
     // Create smooth transition to MainMenu with fade effect
     this.transitionToMainMenu();
   }
 
   private transitionToMainMenu() {
     const { width, height } = this.scale;
-    
+
     // Create fade out overlay
     const fadeOut = this.add.graphics();
     fadeOut.fillStyle(parseInt(Theme.primaryDark.replace('#', ''), 16));

@@ -136,7 +136,7 @@ export class GuessMode {
     const instruction = this.scene.add.text(
       width / 2, 
       60, 
-      `🔍 Find the hidden ${this.hidingSpot.objectKey}!\nClick on objects to make your guess.`, 
+      `🔍 Find the hidden object!\nClick on objects to make your guess.`, 
       {
         fontSize: '18px',
         fontFamily: 'Inter, Arial, sans-serif',
@@ -150,12 +150,7 @@ export class GuessMode {
     instruction.setOrigin(0.5);
     instruction.setDepth(Theme.zIndexUI);
     
-    // Add object icon if available
-    if (this.hidingSpot.objectKey && this.scene.textures.exists(this.hidingSpot.objectKey)) {
-      const icon = this.scene.add.image(width / 2 - 100, 60, this.hidingSpot.objectKey);
-      icon.setDisplaySize(30, 30);
-      icon.setDepth(Theme.zIndexUI);
-    }
+    // Remove the object icon hint as well - players should discover it themselves
   }
 
   async submitGuess(objectKey: string, relX: number, relY: number, screenX: number, screenY: number): Promise<void> {
